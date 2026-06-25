@@ -63,70 +63,79 @@
     </main>
 </div>
 
-<div id="hoverscan-print-template" class="fixed inset-0 opacity-0 pointer-events-none bg-white text-slate-900 p-12 z-[-1] print:opacity-100 print:pointer-events-auto print:block print:relative print:z-[9999] print:bg-white font-sans text-xs select-none">
-    
-    <div class="min-h-screen flex flex-col justify-between page-break-after-always">
-        <div>
-            <div class="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
-                <div>
-                    <h1 class="text-xl font-black uppercase tracking-wider text-slate-900">Hoverscan Inspection Report</h1>
-                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">AI Structural Guardian Analytics</p>
-                </div>
-                <div class="text-right text-[9px] font-mono font-bold text-slate-400 uppercase">
-                    <p>Date Logged: <span class="text-slate-800">{{ date('d/m/Y') }}</span></p>
-                    <p>System Hash: <span id="print-dataset-hash" class="text-slate-700">N/A</span></p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-6 mb-8">
-                <div class="col-span-2 p-5 bg-slate-50 rounded-2xl border border-slate-200/60 font-bold uppercase text-slate-600 space-y-2">
-                    <p class="text-[8px] font-black tracking-widest text-slate-400">Target Structure</p>
-                    <p class="text-base font-black text-slate-900" id="print-bridge-name">DARUL HANA S-BRIDGE</p>
-                    <div class="text-[9px] text-slate-500 font-mono flex gap-4 pt-1">
-                        <span>Division: <strong class="text-slate-800">SARAWAK</strong></span>
-                        <span>Tracking: <strong class="text-slate-800">ACTIVE INFRASTRUCTURE NODE</strong></span>
-                    </div>
-                </div>
-                <div class="col-span-1 p-5 bg-slate-900 text-slate-300 rounded-2xl font-mono text-right flex flex-col justify-between">
-                    <p class="text-[8px] font-sans font-black tracking-widest text-slate-500 uppercase">Telemetry Metrics</p>
-                    <div class="text-[10px] font-bold space-y-0.5 uppercase">
-                        <p>Env Temp: <span class="text-white" id="print-temp-val">31</span>°C</p>
-                        <p>Humidity Status: <span class="text-white" id="print-humidity-val">78</span>% RH</p>
-                        <p class="text-purple-400 font-sans font-black text-[9px] pt-1 mt-1 border-t border-white/10">Total Logged: <span id="print-total-count">0</span></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <p class="text-[8px] uppercase font-black tracking-widest text-slate-400">Hoverscan AI Damage Detection Overview Canvas</p>
-                <div class="border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-950 aspect-video relative max-h-[420px] flex items-center justify-center shadow-sm">
-                    <img id="print-output-img" class="max-w-full max-h-[420px] object-contain" src="">
-                    <div id="print-bbox-overlay" class="absolute inset-0 pointer-events-none"></div>
-                </div>
-            </div>
-        </div>
-        <div class="border-t border-slate-200 pt-4 text-center text-[8px] font-black uppercase tracking-widest text-slate-400">
-            Hoverscan Structural AI Core Engine Pipeline Framework • Authorized Engineering Evaluation Report
-        </div>
+<div 
+  id="hoverscan-print-template" 
+  class="fixed inset-0 opacity-0 pointer-events-none bg-white text-black p-6 font-sans max-w-[190mm] mx-auto z-[-1] print:opacity-100 print:pointer-events-auto print:block print:relative print:z-[9999]"
+  style="color: #000000; background-color: #ffffff; font-size: 11px; line-height: 1.4;"
+>
+  <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000000; padding-bottom: 12px; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <img 
+        src="/hoverscanimg.png" 
+        alt="Hoverscan Logo" 
+        style="height: 36px; width: 36px; object-fit: contain;" 
+      />
+      <div>
+        <h1 style="font-size: 18px; font-weight: 900; letter-spacing: -0.025em; color: #000000; margin: 0; text-transform: uppercase;">HOVERSCAN INSPECTION REPORT</h1>
+        <p style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; margin: 2px 0 0 0;">AI Structural Guardian Analytics</p>
+      </div>
     </div>
 
-    <div class="min-h-screen flex flex-col justify-between">
-        <div class="w-full">
-            <div class="border-b border-slate-200 pb-3 mb-6">
-                <h3 class="text-sm font-black uppercase tracking-wider text-slate-900">Isolated Defect Evidence Logs</h3>
-                <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Targeted damage frames extraction summary matrix</p>
-            </div>
-            
-            <div id="print-evidence-logs-container" class="grid grid-cols-2 gap-6">
-                </div>
-        </div>
-        <div class="border-t border-slate-200 pt-4 text-center text-[8px] font-black uppercase tracking-widest text-slate-400">
-            Hoverscan Structural AI Core Engine Pipeline Framework • Authorized Engineering Evaluation Report
-        </div>
+    <div style="text-align: right;">
+      <p style="font-size: 11px; font-weight: 900; color: #4338ca; margin: 0; text-transform: uppercase;">Hoverscan AI Damage Detection</p>
+      <p style="font-size: 9px; font-family: monospace; color: #64748b; margin: 2px 0 0 0;">Date: <span>{{ date('d/m/Y') }}</span></p>
     </div>
+  </div>
+
+  <div style="display: flex; gap: 24px; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 16px;">
+    <div style="flex: 1; text-align: left;">
+      <p style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 8px; margin: 0 0 2px 0;">Target Structure</p>
+      <p style="font-size: 14px; font-weight: 900; color: #000000; margin: 0;" id="print-bridge-name">DARUL HANA S-BRIDGE</p>
+      <p style="font-family: monospace; font-size: 10px; color: #334155; margin: 2px 0 0 0;">Jurisdiction Division: SARAWAK</p>
+    </div>
+    <div style="flex: 1; text-align: left;">
+      <p style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 8px; margin: 0 0 2px 0;">Telemetry Metrics</p>
+      <p style="margin: 0; font-size: 11px; color: #000000;">Environmental Temp: <strong id="print-temp-val">31</strong><strong>°C</strong></p>
+      <p style="margin: 2px 0 0 0; font-size: 11px; color: #000000;">Humidity Status: <strong id="print-humidity-val">78</strong><strong>% RH</strong></p>
+      <p style="margin: 2px 0 0 0; font-size: 11px; color: #000000;">Total Detections Logged: <strong id="print-total-count">0</strong></p>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 20px; text-align: left;">
+    <p style="font-size: 8px; uppercase; font-weight: 900; tracking-wider; color: #64748b; margin-bottom: 4px;">Hoverscan AI Damage Detection Overview Canvas</p>
+    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #0f172a; aspect-ratio: 16/9; relative; max-height: 380px; display: flex; align-items: center; justify-content: center; position: relative;">
+        <img id="print-output-img" style="max-w-full; max-h: 380px; object-fit: contain;" src="">
+        <div id="print-bbox-overlay" style="position: absolute; inset: 0; pointer-events: none;"></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <h3 style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #94a3b8; padding-bottom: 4px; margin-bottom: 10px; color: #000000; text-align: left;">
+      Isolated Defect Evidence Logs
+    </h3>
+    <div id="print-evidence-logs-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+         </div>
+  </div>
+
+  <div>
+    <h3 style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #94a3b8; padding-bottom: 4px; margin-bottom: 10px; color: #000000; text-align: left;">
+      Distribution Analysis Breakdown (Detected Only)
+    </h3>
+    <table style="font-size: 10px; color: #000000; border-collapse: collapse; width: 100%;">
+      <thead>
+        <tr style="border-bottom: 1.5px solid #000000; font-weight: 900; text-transform: uppercase; color: #475569; font-size: 9px;">
+          <th style="padding-bottom: 4px; text-align: left;">Defect Class Entry</th>
+          <th style="padding-bottom: 4px; text-align: right;">Occurrence Instances</th>
+        </tr>
+      </thead>
+      <tbody id="print-distribution-table-body">
+           </tbody>
+    </table>
+  </div>
 </div>
 
 <script>
+    // System layout theme toggles and configurations map seamlessly below...
     // 1. Theme Configuration Toggling Engine System
     const toggleBtn = document.getElementById('theme-toggle-btn');
     const toggleIcon = document.getElementById('theme-toggle-icon');

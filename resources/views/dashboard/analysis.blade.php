@@ -34,6 +34,7 @@
         </div>
 
         <div class="lg:col-span-2 p-8 rounded-[2.5rem] border border-slate-200/80 dark:border-white/5 bg-white dark:bg-[#0c0e14] flex flex-col justify-between min-h-[500px] shadow-sm">
+            
             <div class="flex justify-between items-center mb-4 hidden" id="print-action-button-container">
                 <div class="flex items-center gap-2">
                     <button type="button" id="manual-draw-btn" onclick="toggleManualDrawMode()" class="px-3.5 py-2 border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-black uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-white/10 transition-all flex items-center gap-1.5 cursor-pointer">
@@ -81,7 +82,7 @@
 
 @push('view-scripts')
 <script>
-    // ⚡ FIX: Register a Trusted Types default policy to stop 'TrustedScript' assignment blockages
+    // ⚡ BYPASS GLOBAL TRUSTED TYPES DIRECTIVES ON SYSTEM RUNTIMES
     if (window.trustedTypes && window.trustedTypes.createPolicy) {
         if (!window.trustedTypes.defaultPolicy) {
             window.trustedTypes.createPolicy('default', {
@@ -95,9 +96,10 @@
     let activeDetectionsCollection = [];
     let manualDrawActiveFlag = false;
     let isDrawingNode = false;
-    let startX = 0, startY = 0;
+    let startX = 0;
+    let startY = 0;
     let crosshairBoxEl = null;
-    let base64ImageStringCache = null; // Holds reliable base64 image data string
+    let base64ImageStringCache = null;
 
     // 1. AI Inference Handling Pipeline Loop
     document.getElementById('ai-inference-form').addEventListener('submit', async function(e) {
@@ -111,7 +113,7 @@
         
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Running GPU Inference...`;
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         
         placeholder.classList.remove('hidden');
         imgWrapper.classList.add('hidden');
@@ -122,7 +124,6 @@
         const fileInput = form.querySelector('input[type="file"]');
         if (!fileInput.files || !fileInput.files[0]) return;
 
-        // ⚡ ASYNC BASE64 TRANSLATION LAYER: Ensures printing engine retains accurate pixels
         const reader = new FileReader();
         reader.onload = async function(event) {
             base64ImageStringCache = event.target.result;
@@ -134,7 +135,7 @@
                 
                 if (result.all_detections && result.all_detections.length > 0) {
                     placeholder.classList.add('hidden');
-                    outputImg.src = base64ImageStringCache; // Render raw base64 straight to viewport screen space
+                    outputImg.src = base64ImageStringCache; 
                     imgWrapper.classList.remove('hidden');
                     
                     outputImg.onload = function() {
@@ -149,16 +150,16 @@
                 } else {
                     placeholder.classList.remove('hidden');
                     placeholder.innerHTML = `<i data-lucide="check-circle" class="w-12 h-12 text-emerald-500 mb-2"></i><p class="text-[10px] uppercase font-black text-emerald-600">No flaws structural indices found.</p>`;
-                    lucide.createIcons();
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 }
             } catch (err) {
                 placeholder.classList.remove('hidden');
                 placeholder.innerHTML = `<i data-lucide="x-circle" class="w-12 h-12 text-rose-500 mb-2"></i><p class="text-[10px] uppercase font-black text-rose-500">Pipeline Execution Error.</p>`;
-                lucide.createIcons();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = `<i data-lucide="cpu" class="w-4 h-4"></i> Execute Core Inference`;
-                lucide.createIcons();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         };
         reader.readAsDataURL(fileInput.files[0]);
@@ -171,22 +172,22 @@
         const listTray = document.getElementById('ai-defects-list-tray');
         const evidenceContainer = document.getElementById('print-evidence-logs-container');
         
-        overlay.innerHTML = '';
-        printOverlay.innerHTML = '';
-        listTray.innerHTML = '';
-        evidenceContainer.innerHTML = ''; // Wipe separated crop elements layer cleanly
+        if (overlay) overlay.innerHTML = '';
+        if (listTray) listTray.innerHTML = '';
+        if (printOverlay) printOverlay.innerHTML = '';
+        if (evidenceContainer) evidenceContainer.innerHTML = ''; 
         
-        document.getElementById('print-action-button-container').classList.remove('hidden');
-        document.getElementById('print-output-img').src = base64ImageStringCache; // Secure print image payload reference
+        const actionButtonContainer = document.getElementById('print-action-button-container');
+        if (actionButtonContainer) actionButtonContainer.classList.remove('hidden');
+
+        const printOutputImg = document.getElementById('print-output-img');
+        if (printOutputImg && base64ImageStringCache) printOutputImg.src = base64ImageStringCache;
 
         activeDetectionsCollection.forEach((det, idx) => {
             const [x1, y1, x2, y2] = det.bbox;
-            
-            // Purple (#7c3aed) for AI detections, Amber (#f59e0b) for manual annotations
             const colorClass = det.isManual ? '#f59e0b' : '#7c3aed';
             const bgAlpha = det.isManual ? 'rgba(245, 158, 11, 0.05)' : 'rgba(124, 58, 237, 0.05)';
 
-            // A. ON-SCREEN INTERACTIVE BOUNDING BOX CONTAINER
             const box = document.createElement('div');
             box.className = 'absolute border-2 rounded select-none transition-shadow';
             box.style.left = (x1 * 100).toFixed(2) + '%';
@@ -204,14 +205,12 @@
             labelWrapper.style.top = '-18px';
             labelWrapper.style.left = '-2px';
             labelWrapper.style.zIndex = '50';
-            
             labelWrapper.innerHTML = `<span>${det.type} • ${det.confidence ? Math.round(det.confidence * 100) + '%' : 'MANUAL'}</span>`;
             
             const closeBtn = document.createElement('button');
             closeBtn.type = 'button';
             closeBtn.className = 'ml-1 hover:text-black font-mono font-bold text-[10px] px-0.5 transition-colors cursor-pointer border-0 bg-transparent text-white';
             closeBtn.innerHTML = '×';
-            
             closeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
             closeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -228,61 +227,67 @@
                 resizeHandle.style.backgroundColor = colorClass;
                 resizeHandle.style.pointerEvents = 'auto';
                 box.appendChild(resizeHandle);
-
                 setupBoxInteractionHandlers(box, resizeHandle, idx);
             }
-            overlay.appendChild(box);
+            if (overlay) overlay.appendChild(box);
 
-            // B. PRINT MIRROR CANVAS RENDERER
-            const printBox = document.createElement('div');
-            printBox.className = 'absolute border-2 rounded';
-            printBox.style.left = (x1 * 100).toFixed(2) + '%';
-            printBox.style.top = (y1 * 100).toFixed(2) + '%';
-            printBox.style.width = ((x2 - x1) * 100).toFixed(2) + '%';
-            printBox.style.height = ((y2 - y1) * 100).toFixed(2) + '%';
-            printBox.style.borderColor = colorClass;
-            printBox.style.backgroundColor = 'transparent'; // Keeps interior crystal clear
-            printOverlay.appendChild(printBox);
+            if (printOverlay) {
+                const printBox = document.createElement('div');
+                printBox.className = 'absolute border-2 rounded';
+                printBox.style.left = (x1 * 100).toFixed(2) + '%';
+                printBox.style.top = (y1 * 100).toFixed(2) + '%';
+                printBox.style.width = ((x2 - x1) * 100).toFixed(2) + '%';
+                printBox.style.height = ((y2 - y1) * 100).toFixed(2) + '%';
+                printBox.style.borderColor = colorClass;
+                printBox.style.backgroundColor = 'transparent';
+                printOverlay.appendChild(printBox);
+            }
 
-            // C. ⚡ FIXED: ROBUST STABLE VIEWPORT OFFSETS WITHOUT SCALING DISTORTIONS
-            const evidenceCard = document.createElement('div');
-            evidenceCard.className = 'border border-slate-200 bg-white rounded-xl overflow-hidden shadow-sm flex flex-col justify-between p-3 page-break-inside-avoid';
-            
-            // Calculate exact width and height dimensions of the bounding box slice
-            const boxW = x2 - x1;
-            const boxH = y2 - y1;
+            if (evidenceContainer) {
+                const evidenceCard = document.createElement('div');
+                evidenceCard.style.border = '1px solid #cbd5e1'; 
+                evidenceCard.style.borderRadius = '6px'; 
+                evidenceCard.style.padding = '6px'; 
+                evidenceCard.style.backgroundColor = '#f8fafc';
+                evidenceCard.style.display = 'flex';
+                evidenceCard.style.flexDirection = 'column';
+                evidenceCard.style.gap = '6px';
+                evidenceCard.style.breakInside = 'avoid';
+                evidenceCard.style.pageBreakInside = 'avoid';
 
-            // Prevent dividing by zero if an invalid box is generated
-            const pctW = boxW > 0 ? (100 / boxW).toFixed(2) : 100;
-            const pctH = boxH > 0 ? (100 / boxH).toFixed(2) : 100;
-            const pctX = boxW > 0 ? ((x1 / (1 - boxW)) * 100).toFixed(2) : 0;
-            const pctY = boxH > 0 ? ((y1 / (1 - boxH)) * 100).toFixed(2) : 0;
+                const boxW = x2 - x1;
+                const boxH = y2 - y1;
+                const pctW = boxW > 0 ? (100 / boxW).toFixed(1) : 100;
+                const pctH = boxH > 0 ? (100 / boxH).toFixed(1) : 100;
 
-            evidenceCard.innerHTML = `
-                <div class="relative bg-slate-900 rounded-lg aspect-video mb-3 overflow-hidden border border-slate-100">
-                    <div class="absolute inset-0 w-full h-full" style="pointer-events: none;">
-                        <img src="${base64ImageStringCache}" 
-                             class="absolute max-w-none" 
-                             style="width: ${pctW}%; height: ${pctH}%; left: -${(x1 * pctW).toFixed(2)}%; top: -${(y1 * pctH).toFixed(2)}%; object-fit: contain;">
+                evidenceCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; text-align: left;">
+                        <strong style="text-transform: uppercase; color: ${det.isManual ? '#d97706' : '#2563eb'}; font-weight:900;">
+                            #${idx + 1} — ${det.type} ${det.isManual ? '(Manual)' : '(AI Log)'}
+                        </strong>
+                        <span style="color: #64748b; font-family: monospace;">
+                            ${det.confidence ? 'Conf: ' + Math.round(det.confidence * 100) + '%' : '100% CONFIRMED'}
+                        </span>
                     </div>
-                    <div class="absolute inset-0 border-[3px]" style="border-color: ${colorClass}; z-index: 10;"></div>
-                </div>
-                <div class="space-y-1 text-[10px] font-bold text-slate-500 uppercase">
-                    <div class="flex justify-between border-b pb-1">
-                        <span class="font-black text-slate-900 font-mono">#${idx + 1} - ${det.type}</span>
-                        <span class="px-2 py-0.5 rounded text-[8px] text-white" style="background-color: ${colorClass}; font-mono">${det.isManual ? 'MANUAL' : 'AI LOG'}</span>
+                    <div style="width: 100%; height: 110px; position: relative; overflow: hidden; border-radius: 4px; background-color: #000000;">
+                        <img 
+                            src="${base64ImageStringCache}" 
+                            alt="Defect ${idx + 1}" 
+                            style="position: absolute; width: ${pctW}%; height: ${pctH}%; left: -${(x1 * pctW).toFixed(1)}%; top: -${(y1 * pctH).toFixed(1)}%; object-fit: contain; transform: scale(1.3); transform-origin: ${(x1 + x2) * 50}% ${(y1 + y2) * 50}%;"
+                        />
+                        <div style="position: absolute; border: ${det.isManual ? '2px dashed #d97706' : '2px solid #2563eb'}; left: ${x1 * 100}%; top: ${y1 * 100}%; width: ${(x2 - x1) * 100}%; height: ${(y2 - y1) * 100}%; pointer-events: none; box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);" />
                     </div>
-                    <p class="pt-1">Pipeline Classification: <strong class="text-slate-800">${det.type}</strong></p>
-                    <p>Metric Confidence Value: <strong class="text-slate-800">${det.confidence ? Math.round(det.confidence * 100) + '%' : '100% CONFIRMED'}</strong></p>
-                </div>
-            `;
-            evidenceContainer.appendChild(evidenceCard);
+                    <div style="font-size: 7px; color: #475569; font-family: monospace; margin-top: 2px; text-align: left;">
+                        Metric type: Surface Area Footprint — <strong>Estimated Structural Vulnerability</strong>
+                    </div>
+                `;
+                evidenceContainer.appendChild(evidenceCard);
+            }
 
-            // D. METADATA SIDEBAR TRAY LIST INDEX ITEM
             const itemCard = document.createElement('div');
             itemCard.className = 'p-3 rounded-xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 flex items-center justify-between shadow-sm';
             itemCard.innerHTML = `
-                <div class="space-y-0.5 select-none">
+                <div class="space-y-0.5 select-none text-left">
                     <p class="font-black text-[11px] text-slate-800 dark:text-white tracking-tight">${det.type}</p>
                     <p class="font-mono text-[9px] text-slate-400">${det.isManual ? 'MANUAL INJECTION' : 'CONF: ' + Math.round(det.confidence * 100) + '%'}</p>
                 </div>
@@ -297,27 +302,54 @@
                 removeAnnotationNode(idx);
             });
             itemCard.appendChild(trayDeleteBtn);
-            listTray.appendChild(itemCard);
+            if (listTray) listTray.appendChild(itemCard);
         });
 
-        // Update global printing data counts targets tracking values
-        document.getElementById('print-bridge-name').innerText = document.querySelector('select[name="bridge_name"]').value.toUpperCase();
-        document.getElementById('print-temp-val').innerText = document.querySelector('input[name="temperature"]').value;
-        document.getElementById('print-humidity-val').innerText = document.querySelector('input[name="humidity"]').value;
-        document.getElementById('print-total-count').innerText = activeDetectionsCollection.length;
-        document.getElementById('print-highest-severity').innerText = activeDetectionsCollection.some(d => d.type === 'spalling expose rebar') ? 'CRITICAL REBAR EXPOSURE' : 'MEDIUM / HIGH';
-        if (document.getElementById('print-dataset-hash').innerText === 'N/A') {
-            document.getElementById('print-dataset-hash').innerText = 'AST-' + Math.random().toString(16).substr(2, 8).toUpperCase();
+        const printBridge = document.getElementById('print-bridge-name');
+        const selectBridge = document.querySelector('select[name="bridge_name"]');
+        if (printBridge && selectBridge) printBridge.innerText = selectBridge.value.toUpperCase();
+
+        const printTemp = document.getElementById('print-temp-val');
+        const inputTemp = document.querySelector('input[name="temperature"]');
+        if (printTemp && inputTemp) printTemp.innerText = inputTemp.value;
+
+        const printHumidity = document.getElementById('print-humidity-val');
+        const inputHumidity = document.querySelector('input[name="humidity"]');
+        if (printHumidity && inputHumidity) printHumidity.innerText = inputHumidity.value;
+
+        const printTotal = document.getElementById('print-total-count');
+        if (printTotal) printTotal.innerText = activeDetectionsCollection.length;
+
+        const printHash = document.getElementById('print-dataset-hash');
+        if (printHash && printHash.innerText === 'N/A') {
+            printHash.innerText = 'AST-' + Math.random().toString(16).substr(2, 8).toUpperCase();
+        }
+
+        const tableBody = document.getElementById('print-distribution-table-body');
+        if (tableBody) {
+            tableBody.innerHTML = '';
+            const classCounts = {};
+            activeDetectionsCollection.forEach(d => { classCounts[d.type] = (classCounts[d.type] || 0) + 1; });
+
+            const loggedClasses = Object.keys(classCounts);
+            if (loggedClasses.length > 0) {
+                loggedClasses.forEach(cls => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid #e2e8f0';
+                    tr.innerHTML = `<td style="padding: 6px 0; text-transform: uppercase; font-family: monospace; color: #1e293b; font-weight: 700; text-align: left;">${cls}</td><td style="padding: 6px 0; text-align: right; font-weight: 900; color: #000000; font-family: monospace; font-size: 11px;">${classCounts[cls]}</td>`;
+                    tableBody.appendChild(tr);
+                });
+            } else {
+                tableBody.innerHTML = `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 0; color: #64748b; font-style: italic; text-transform: uppercase; font-weight: 500; text-align: left;" colSpan="2">No structural defect vulnerabilities registered by YOLO loop context.</td></tr>`;
+            }
         }
     }
 
-    // 3. REMOVE ANNOTATION MATRIX INDEX FUNCTION
     window.removeAnnotationNode = function(index) {
         activeDetectionsCollection.splice(index, 1);
         renderInterfaceOverlayMatrix();
     };
 
-    // 4. TOGGLE MANUAL INJECTION PLOTTING CANVAS MODE
     window.toggleManualDrawMode = function() {
         manualDrawActiveFlag = !manualDrawActiveFlag;
         const btn = document.getElementById('manual-draw-btn');
@@ -327,18 +359,17 @@
         if (manualDrawActiveFlag) {
             btn.classList.replace('bg-slate-50', 'bg-amber-500');
             btn.classList.add('text-white');
-            selector.classList.remove('hidden');
+            if (selector) selector.classList.remove('hidden');
             text.innerText = 'Exit Drawing Mode';
         } else {
             btn.classList.replace('bg-amber-500', 'bg-slate-50');
             btn.classList.remove('text-white');
-            selector.classList.add('hidden');
+            if (selector) selector.classList.add('hidden');
             text.innerText = 'Add Manual Box';
         }
         renderInterfaceOverlayMatrix(); 
     };
 
-    // 5. CLICK-TO-DRAG MOUSE TRACKING OVER CANVAS WRAPPER OBJECT
     const canvasOverlay = document.getElementById('bbox-overlay-wrapper');
 
     canvasOverlay.addEventListener('mousedown', function(e) {
@@ -405,13 +436,11 @@
         renderInterfaceOverlayMatrix();
     });
 
-    // 6. DRAG AND RESIZE REAL-TIME TRANSACTION ENGINE
     function setupBoxInteractionHandlers(boxEl, handleEl, index) {
         const overlay = document.getElementById('bbox-overlay-wrapper');
         
         boxEl.addEventListener('mousedown', function(e) {
             if (e.target.closest('button') || e.target === handleEl) return; 
-            
             e.preventDefault();
             e.stopPropagation(); 
             
@@ -421,26 +450,18 @@
 
             let boxWidth = currentDet.bbox[2] - currentDet.bbox[0];
             let boxHeight = currentDet.bbox[3] - currentDet.bbox[1];
-
             let clickOffsetX = ((e.clientX - rect.left) / rect.width) - currentDet.bbox[0];
             let clickOffsetY = ((e.clientY - rect.top) / rect.height) - currentDet.bbox[1];
 
             function onMouseMove(moveEvent) {
                 let currentMouseX = (moveEvent.clientX - rect.left) / rect.width;
                 let currentMouseY = (moveEvent.clientY - rect.top) / rect.height;
-
                 let newX1 = Math.max(0, Math.min(1 - boxWidth, currentMouseX - clickOffsetX));
                 let newY1 = Math.max(0, Math.min(1 - boxHeight, currentMouseY - clickOffsetY));
 
                 boxEl.style.left = (newX1 * 100).toFixed(2) + '%';
                 boxEl.style.top = (newY1 * 100).toFixed(2) + '%';
-
-                activeDetectionsCollection[index].bbox = [
-                    newX1, 
-                    newY1, 
-                    newX1 + boxWidth, 
-                    newY1 + boxHeight
-                ];
+                activeDetectionsCollection[index].bbox = [newX1, newY1, newX1 + boxWidth, newY1 + boxHeight];
             }
 
             function onMouseUp() {
@@ -448,7 +469,6 @@
                 document.removeEventListener('mouseup', onMouseUp);
                 renderInterfaceOverlayMatrix(); 
             }
-
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         });
@@ -456,7 +476,6 @@
         handleEl.addEventListener('mousedown', function(e) {
             e.preventDefault();
             e.stopPropagation(); 
-
             const rect = overlay.getBoundingClientRect();
             let currentDet = activeDetectionsCollection[index];
             if (!currentDet) return;
@@ -464,13 +483,11 @@
             function onMouseMove(moveEvent) {
                 let currentMouseX = (moveEvent.clientX - rect.left) / rect.width;
                 let currentMouseY = (moveEvent.clientY - rect.top) / rect.height;
-
                 let newX2 = Math.max(currentDet.bbox[0] + 0.02, Math.min(1, currentMouseX));
                 let newY2 = Math.max(currentDet.bbox[1] + 0.02, Math.min(1, currentMouseY));
 
                 boxEl.style.width = ((newX2 - currentDet.bbox[0]) * 100).toFixed(2) + '%';
                 boxEl.style.height = ((newY2 - currentDet.bbox[1]) * 100).toFixed(2) + '%';
-
                 activeDetectionsCollection[index].bbox[2] = newX2;
                 activeDetectionsCollection[index].bbox[3] = newY2;
             }
@@ -480,33 +497,103 @@
                 document.removeEventListener('mouseup', onMouseUp);
                 renderInterfaceOverlayMatrix();
             }
-
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         });
     }
 
-    // 7. WINDOW EVALUATION PRINTER CORE ENGINE (WITH DYNAMIC BUFFER WAITING HOOKS)
+   // 7. 🚀 UPGRADED SEAMLESS BACKDROP IFRAME PRINTER ENGINE (FIXED LOGO & PERFECT PAGE BREAKS)
     function executeReportPrint() {
-        const printImg = document.getElementById('print-output-img');
+        const reportContent = document.getElementById('hoverscan-print-template').innerHTML;
         
-        // Helper inline wrapper to fire the native dialog safely
-        const triggerBrowserPrint = () => {
-            // A tiny timeout gives the browser's layout engine one final tick to render vectors cleanly
-            setTimeout(() => {
-                window.print();
-            }, 100);
-        };
+        // 1. Remove any old leftover frame instances from the DOM
+        const existingFrame = document.getElementById('hoverscan-silent-print-frame');
+        if (existingFrame) existingFrame.remove();
 
-        // If the primary preview canvas image is already fully decoded, print immediately!
-        if (printImg.complete) {
-            triggerBrowserPrint();
-        } else {
-            // Otherwise, attach a one-time load listener to catch it the moment it finishes buffer streaming
-            printImg.onload = function() {
-                triggerBrowserPrint();
-            };
-        }
+        // 2. Create a completely invisible iframe hidden safely from view
+        const iframe = document.createElement('iframe');
+        iframe.id = 'hoverscan-silent-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.margin = '0';
+        iframe.style.padding = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+
+        document.body.appendChild(iframe);
+
+        const frameDoc = iframe.contentWindow.document || iframe.contentDocument;
+        
+        frameDoc.open();
+        frameDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Hoverscan Inspection Report</title>
+                <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+                <script src="https://cdn.tailwindcss.com"><\/script>
+                <style>
+                    body { 
+                        font-family: 'Plus Jakarta Sans', sans-serif; 
+                        background-color: #ffffff !important; 
+                        color: #000000 !important; 
+                        padding: 20px; 
+                        margin: 0;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+                    
+                    /* ⚡ PROFESSIONAL PRINT PAGE LAYOUT BREAK BALANCING CONTROLS */
+                    @media print {
+                        body { padding: 0; margin: 0; }
+                        @page { 
+                            size: A4 portrait; 
+                            margin: 20mm 15mm 20mm 15mm; 
+                        }
+                        
+                        /* Forces entire main sections to avoid slicing in half */
+                        h3, table, .grid {
+                            break-inside: avoid !important;
+                            page-break-inside: avoid !important;
+                        }
+                    }
+                    img { max-width: 100%; object-fit: contain; }
+                </style>
+            </head>
+            <body>
+                <div style="width: 100%; max-w-[190mm]; margin: 0 auto;">
+                    ${reportContent}
+                </div>
+                <script>
+                    // ⚡ ASYNC LOGO RECOVERY REPAIR ENGINE
+                    const logoImg = document.querySelector('img[alt="Hoverscan Logo"]');
+                    if (logoImg) {
+                        // Re-route the path explicitly to verify local directory asset mapping lines
+                        logoImg.src = window.location.origin + '/hoverscanimg.png';
+                        
+                        // Hide broken image frames gracefully if the asset file itself is missing
+                        logoImg.onerror = function() {
+                            this.style.display = 'none';
+                        };
+                    }
+
+                    window.onload = function() {
+                        // Allow Tailwind CDN parsing engine to map responsive vectors cleanly in background thread memory
+                        setTimeout(() => {
+                            window.focus();
+                            window.print();
+                        }, 600);
+                    };
+                <\/script>
+            </body>
+            </html>
+        `);
+        frameDoc.close();
     }
 </script>
 @endpush

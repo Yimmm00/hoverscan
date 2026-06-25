@@ -92,6 +92,7 @@
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>
