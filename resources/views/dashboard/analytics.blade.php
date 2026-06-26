@@ -90,7 +90,6 @@
     let defectDistributionChartInstance = null;
     const isDark = document.documentElement.classList.contains('dark');
 
-    // ⚡ ALL 11 SYSTEM DEFECT CLASSES CHRONOLOGICAL MATRIX MAP
     const chartLabelsIndex = [
         'Potholes', 'Concrete Spalling', 'Cracks', 'Spalling Expose Rebar', 
         'Mold', 'Rust', 'Staining', 'Peeling', 'Bridge Joint', 'Road Bleeding', 'Vegetation'
@@ -99,32 +98,32 @@
     document.addEventListener('DOMContentLoaded', () => {
         const ctx = document.getElementById('hoverscan-analytics-chart').getContext('2d');
         
-        // Initialize structural tracker map data variables at zero
         const structuralDataMap = {};
         chartLabelsIndex.forEach(label => { structuralDataMap[label] = 0; });
 
-        // ⚡ DYNAMIC MAPPING FOR INITIAL SERVER LOAD: Maps raw strings to human-readable labels
-        @foreach($recent_logs as $log)
-            @php
-                $normalizedClass = match(strtolower($log->defect_class)) {
-                    'potholes', 'pothole' => 'Potholes',
-                    'concrete spalling'   => 'Concrete Spalling',
-                    'crack', 'cracks'     => 'Cracks',
-                    'spalling expose rebar' => 'Spalling Expose Rebar',
-                    'mold'                => 'Mold',
-                    'rust'                => 'Rust',
-                    'staining'            => 'Staining',
-                    'peeling'             => 'Peeling',
-                    'bridge joint'        => 'Bridge Joint',
-                    'road bleeding'       => 'Road Bleeding',
-                    'vegetation'          => 'Vegetation',
-                    default               => null
-                };
-            @endphp
-            @if($normalizedClass)
-                structuralDataMap['{{ $normalizedClass }}']++;
-            @endif
-        @endforeach
+        @if(isset($all_chart_records))
+            @foreach($all_chart_records as $log)
+                @php
+                    $normalizedClass = match(strtolower($log->defect_class)) {
+                        'potholes', 'pothole'   => 'Potholes',
+                        'concrete spalling'     => 'Concrete Spalling',
+                        'crack', 'cracks'       => 'Cracks',
+                        'spalling expose rebar' => 'Spalling Expose Rebar',
+                        'mold'                  => 'Mold',
+                        'rust'                  => 'Rust',
+                        'staining'              => 'Staining',
+                        'peeling'               => 'Peeling',
+                        'bridge joint'          => 'Bridge Joint',
+                        'road bleeding'         => 'Road Bleeding',
+                        'vegetation'            => 'Vegetation',
+                        default                 => null
+                    };
+                @endphp
+                @if($normalizedClass)
+                    structuralDataMap['{{ $normalizedClass }}']++;
+                @endif
+            @endforeach
+        @endif
 
         const emptyStatePlugin = {
             id: 'emptyState',
@@ -162,13 +161,11 @@
             },
             options: {
                 responsive: true,
-                // ⚡ FIX 1: Forces Chart.js to scale horizontally to the exact boundaries of the scrollable parent container
                 maintainAspectRatio: false, 
                 plugins: { 
                     legend: { display: false } 
                 },
                 layout: {
-                    // ⚡ FIX 2: Adds uniform padding offsets around the canvas edges so ticks align perfectly under the bars
                     padding: { left: 10, right: 15, top: 10, bottom: 0 } 
                 },
                 scales: {
@@ -179,7 +176,6 @@
                             font: { weight: '800', size: 9 },
                             maxRotation: 0,
                             minRotation: 0,
-                            // ⚡ FIX 3: Prevents Chart.js from hiding labels based on auto-skipping heuristics
                             autoSkip: false 
                         }
                     },
@@ -234,7 +230,7 @@
                 `).join('');
             }
 
-            if (defectDistributionChartInstance) {
+            if (result.chart) {
                 defectDistributionChartInstance.data.datasets[0].data = [
                     result.chart['Potholes'] || 0,
                     result.chart['Concrete Spalling'] || 0,
@@ -245,7 +241,7 @@
                     result.chart['Staining'] || 0,
                     result.chart['Peeling'] || 0,
                     result.chart['Bridge Joint'] || 0,
-                    result.chart['Road Bleeding'] || 0,
+                    result.chart['Road Bleeding'] || 0, 
                     result.chart['Vegetation'] || 0
                 ];
                 defectDistributionChartInstance.update();

@@ -74,15 +74,20 @@ Route::get('/web-api/dashboard/filter', function (Illuminate\Http\Request $reque
     // Fetch the recent logs matching the filter window
     $logs = (clone $query)->orderBy('created_at', 'desc')->take(10)->get();
 
-    // Aggregate counts by classification for the chart
+// Aggregate counts by classification for the chart
     $allRecords = $query->get();
     $chartData = [
-        'Potholes' => $allRecords->where('defect_class', 'potholes')->count(),
-        'Spalling' => $allRecords->where('defect_class', 'concrete spalling')->count(),
-        'Cracks'   => $allRecords->where('defect_class', 'crack')->count(),
-        'Mold'     => $allRecords->where('defect_class', 'mold')->count(),
-        'Rust'     => $allRecords->where('defect_class', 'rust')->count(),
-        'Staining' => $allRecords->where('defect_class', 'staining')->count(),
+        'Potholes'              => $allRecords->filter(fn($r) => in_array(strtolower(trim($r->defect_class)), ['potholes', 'pothole']))->count(),
+        'Concrete Spalling'     => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'concrete spalling')->count(),
+        'Cracks'                => $allRecords->filter(fn($r) => in_array(strtolower(trim($r->defect_class)), ['crack', 'cracks']))->count(),
+        'Spalling Expose Rebar' => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'spalling expose rebar')->count(),
+        'Mold'                  => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'mold')->count(),
+        'Rust'                  => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'rust')->count(),
+        'Staining'              => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'staining')->count(),
+        'Peeling'               => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'peeling')->count(),
+        'Bridge Joint'          => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'bridge joint')->count(),
+        'Road Bleeding'         => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'road bleeding')->count(),
+        'Vegetation'            => $allRecords->filter(fn($r) => strtolower(trim($r->defect_class)) === 'vegetation')->count(),
     ];
 
     return response()->json([
