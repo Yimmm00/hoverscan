@@ -1,6 +1,6 @@
 import io
 import uvicorn
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles  
 from PIL import Image
@@ -22,8 +22,6 @@ import laspy
 # 1. Initialize FastAPI Application Configuration
 app = FastAPI(title="Hoverscan AI Backend", description="YOLOv8 Inference API with Real-time Defect Geotagging & Severity Analytics")
 
-model = YOLO('best.pt')
-
 # 2. Enable CORS for Connections
 app.add_middleware(
     CORSMiddleware,
@@ -43,7 +41,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(base_dir, "best.pt")
 
-# Select the target GPU graphics layout framework (uses cuda:1 if multi-GPU is available)
+# Select the target GPU graphics layout framework
 device = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else ("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Accelerating inference pipeline using device layout framework: System target platform -> {device.upper()}")
 
@@ -154,8 +152,8 @@ def estimate_defect_dimensions(bbox, class_name, altitude=5.0, fov_horizontal=80
 
 
 def calculate_environmental_stress_factor(temperature, humidity, class_name):
-    moisture_risk_classes = ['rust', 'mold', 'staining', 'peeling']
-    thermal_stress_classes = ['crack', 'spalling', 'spalling expose rebar', 'bridge joint']
+    moisture_risk_classes = ['rust', 'mold', 'staining', 'peeling', 'vegetation']
+    thermal_stress_classes = ['crack', 'spalling', 'concrete spalling', 'spalling expose rebar', 'bridge joint', 'road bleeding']
 
     base_modifier = 1.0
     if humidity > 80.0 and class_name in moisture_risk_classes:
@@ -168,9 +166,9 @@ def calculate_environmental_stress_factor(temperature, humidity, class_name):
 @app.post("/analyze")
 async def analyze_image(
     file: UploadFile = File(...), 
-    temperature: float = 31.0, 
-    humidity: float = 78.0,
-    bridge_name: str = "Batang Sadong Bridge"
+    temperature: float = Form(31.0), 
+    humidity: float = Form(78.0),
+    bridge_name: str = Form("Batang Sadong Bridge")
 ):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image type asset context")
@@ -206,10 +204,20 @@ async def analyze_image(
                 adjusted_severity_score = confidence * env_stress
                 severity_tier = "Low"
                 
+                # ⚡ CRITICAL CLASSIFICATION AND SEVERITY MAPPING FOR ALL 11 CLASSES
                 if class_name == "spalling expose rebar":
                     severity_tier = "Critical"
+                elif class_name in ["potholes", "road bleeding"]:
+                    severity_tier = "High" if adjusted_severity_score > 0.65 else "Medium"
                 elif class_name == "concrete spalling":
                     severity_tier = "High" if adjusted_severity_score > 0.75 else "Medium"
+                elif class_name in ["crack", "bridge joint", "vegetation", "rust"]:
+                    if adjusted_severity_score > 0.85:
+                        severity_tier = "High"
+                    elif adjusted_severity_score > 0.45:
+                        severity_tier = "Medium"
+                    else:
+                        severity_tier = "Low"
                 elif adjusted_severity_score > 1.1:
                     severity_tier = "Critical"
                 elif adjusted_severity_score > 0.75:
@@ -277,4 +285,4 @@ async def root():
     return {"status": "online", "model": "YOLOv8-Bridge-Damage-v6", "device": device}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

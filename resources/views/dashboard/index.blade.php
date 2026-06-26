@@ -101,14 +101,6 @@
     </div>
   </div>
 
-  <div style="margin-bottom: 20px; text-align: left;">
-    <p style="font-size: 8px; uppercase; font-weight: 900; tracking-wider; color: #64748b; margin-bottom: 4px;">Hoverscan AI Damage Detection Overview Canvas</p>
-    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #0f172a; aspect-ratio: 16/9; relative; max-height: 380px; display: flex; align-items: center; justify-content: center; position: relative;">
-        <img id="print-output-img" style="max-w-full; max-h: 380px; object-fit: contain;" src="">
-        <div id="print-bbox-overlay" style="position: absolute; inset: 0; pointer-events: none;"></div>
-    </div>
-  </div>
-
   <div style="margin-bottom: 20px;">
     <h3 style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #94a3b8; padding-bottom: 4px; margin-bottom: 10px; color: #000000; text-align: left;">
       Isolated Defect Evidence Logs
@@ -135,7 +127,6 @@
 </div>
 
 <script>
-    // System layout theme toggles and configurations map seamlessly below...
     // 1. Theme Configuration Toggling Engine System
     const toggleBtn = document.getElementById('theme-toggle-btn');
     const toggleIcon = document.getElementById('theme-toggle-icon');
@@ -189,6 +180,19 @@
         document.getElementById('view-panel-' + activeTab).classList.remove('hidden');
         document.getElementById('current-view-header').innerText = activeTab.toUpperCase() + " INTERFACE MATRIX";
     });
+
+    // ⚡ INTER-TAB SELECTION ROUTER: Ties Asset maps/lists straight to AI inputs seamlessly
+    window.routeToAnalysisTarget = function(bridgeName) {
+        const selectElement = document.querySelector('select[name="bridge_name"]');
+        if (selectElement) {
+            selectElement.value = bridgeName;
+            selectElement.dispatchEvent(new Event('change'));
+        }
+        const analysisTabBtn = document.querySelector('button[data-tab="analysis"]');
+        if (analysisTabBtn) {
+            analysisTabBtn.click();
+        }
+    };
 
     // 3. Dynamic Modal Library Triggers
     document.addEventListener('click', function(e) {

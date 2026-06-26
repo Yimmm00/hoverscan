@@ -55,12 +55,21 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5 text-xs font-bold text-slate-600 dark:text-slate-300" id="bridges-table-body">
                     @foreach($bridges as $bridge)
-                        <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.01] cursor-pointer asset-row-node" data-name="{{ $bridge->name }}" data-coords="{{ $bridge->location_coords }}">
+                        @php
+                            // Isolate top indexed active severity threat value
+                            $maxSeverity = $bridge->defectRecords->first()->severity ?? 'None';
+                        @endphp
+                        <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.01] cursor-pointer asset-row-node" 
+                            data-name="{{ $bridge->name }}" 
+                            data-coords="{{ $bridge->location_coords }}"
+                            data-max-severity="{{ $maxSeverity }}">
                             <td class="py-5 px-8 font-black uppercase italic text-slate-900 dark:text-white">{{ $bridge->name }}</td>
                             <td class="py-5 px-6 text-blue-600 dark:text-blue-400 uppercase">{{ $bridge->district }}</td>
                             <td class="py-5 px-6 font-mono text-slate-400 dark:text-slate-400">{{ $bridge->location_coords }}</td>
                             <td class="py-5 px-6 text-center">
-                                <span class="px-2.5 py-1 rounded-md text-[10px] font-black bg-rose-500/10 text-rose-500">{{ $bridge->total_anomalies }}</span>
+                                <span class="px-2.5 py-1 rounded-md text-[10px] font-black bg-rose-500/10 text-rose-500 transition-all duration-300">
+                                    {{ $bridge->defect_records_count ?? 0 }}
+                                </span>
                             </td>
                         </tr>
                     @endforeach
@@ -113,22 +122,42 @@
     function bindRowTelemetryMarker(row) {
         const name = row.getAttribute('data-name');
         const coordsString = row.getAttribute('data-coords');
+        const maxSeverity = row.getAttribute('data-max-severity') || 'None';
         if (!coordsString) return;
         
         const [lat, lng] = coordsString.split(',').map(num => parseFloat(num.trim()));
         if (isNaN(lat) || isNaN(lng)) return;
 
+        // ⚡ DYNAMIC MARKER COLOR MATRIX ALGORITHM BASED ON CURRENT ACTIVE SEVERITY INDEX
+        let markerColorClass = 'bg-blue-600'; 
+        if (maxSeverity === 'Critical') {
+            markerColorClass = 'bg-rose-500 animate-pulse ring-4 ring-rose-500/20';
+        } else if (maxSeverity === 'High' || maxSeverity === 'Medium') {
+            markerColorClass = 'bg-amber-500';
+        }
+
         const markerEl = document.createElement('div');
-        markerEl.className = 'w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-125';
+        markerEl.className = `w-4 h-4 rounded-full ${markerColorClass} border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-125`;
+
+        // ⚡ INTEGRATED POPUP ACTION: Generates the HTML layout with the inter-tab routing button embedded
+        const popupContentHtml = `
+            <div class="p-2 text-xs font-bold text-slate-900 uppercase min-w-[160px]">
+                <h6 class="font-black border-b border-slate-200 pb-1 mb-1">${name}</h6>
+                <p class="text-[9px] text-slate-400 font-mono mb-2">Coordinates: ${lat}, ${lng}</p>
+                
+                <button 
+                    type="button" 
+                    onclick="window.routeToAnalysisTarget('${name.replace(/'/g, "\\'")}')" 
+                    class="w-full text-center px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-lg transition-all shadow-sm cursor-pointer border-0"
+                >
+                    Analyze Structure Node
+                </button>
+            </div>
+        `;
 
         const marker = new maplibregl.Marker({ element: markerEl })
             .setLngLat([lng, lat])
-            .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
-                <div class="p-2 text-xs font-bold text-slate-900 uppercase">
-                    <h6 class="font-black border-b border-slate-200 pb-1 mb-1">${name}</h6>
-                    <p class="text-[9px] text-slate-500 font-mono">Coordinates: ${lat}, ${lng}</p>
-                </div>
-            `))
+            .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(popupContentHtml))
             .addTo(gisMapInstance);
 
         row.addEventListener('click', () => {
@@ -155,7 +184,8 @@
         lucide.createIcons();
 
         try {
-            const response = await fetch('/api/bridges/register', {
+            // ⚡ UPDATED ROUTE TO HIT SECURE WEB PIPELINE ENDPOINT DIRECTLY
+            const response = await fetch('/web-api/bridges/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -177,6 +207,7 @@
             newRow.className = 'hover:bg-slate-50 dark:hover:bg-white/[0.01] cursor-pointer asset-row-node transition-colors duration-150';
             newRow.setAttribute('data-name', name);
             newRow.setAttribute('data-coords', coordsString);
+            newRow.setAttribute('data-max-severity', 'None');
             
             newRow.innerHTML = `
                 <td class="py-5 px-8 font-black uppercase italic text-slate-900 dark:text-white">${name}</td>
@@ -208,6 +239,30 @@
             submitBtn.disabled = false;
             submitBtn.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i> Commit Registry Entry`;
             lucide.createIcons();
+        }
+    });
+
+    // ⚡ NEW REAL-TIME INTER-TAB TELEMETRY REACTION ENGINE LISTENER
+    document.addEventListener('hoverscan:telemetry-update', (e) => {
+        const { bridgeName, addedCount } = e.detail;
+        
+        // Match structure name identity to data attribute cell targets
+        const targetRow = document.querySelector(`.asset-row-node[data-name="${bridgeName}"]`);
+        if (!targetRow) return;
+
+        const countBadge = targetRow.querySelector('td .rounded-md');
+        if (countBadge) {
+            let currentTotal = parseInt(countBadge.innerText.trim()) || 0;
+            let nextComputedTotal = currentTotal + addedCount;
+            
+            // Update structural counter tracking metrics live inside the browser window context
+            countBadge.innerText = nextComputedTotal;
+            
+            // Trigger temporary structural alert style flash transition highlight
+            countBadge.classList.add('scale-110', 'bg-rose-500', 'text-white');
+            setTimeout(() => {
+                countBadge.classList.remove('scale-110', 'bg-rose-500', 'text-white');
+            }, 1500);
         }
     });
 </script>

@@ -19,7 +19,10 @@ class DashboardController extends Controller
         $avgConfRaw = DefectRecord::avg('confidence_score') ?? 0.0;
         $avgConfidence = round($avgConfRaw * 100, 1) . '%';
         
-        $bridges = Bridge::all();
+        // Inside DashboardController.php view builder logic
+        $bridges = Bridge::with(['defectRecords' => function($query) {
+            $query->orderBy('severity', 'desc'); // Order elements by severity matrix string rules
+        }])->withCount('defectRecords')->get();
         
         $recentLogs = DefectRecord::orderBy('created_at', 'desc')
             ->take(4)

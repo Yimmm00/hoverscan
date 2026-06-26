@@ -46,7 +46,13 @@
                         <option value="concrete spalling">concrete spalling</option>
                         <option value="crack">crack</option>
                         <option value="spalling expose rebar">spalling expose rebar</option>
+                        <option value="mold">mold</option>
                         <option value="rust">rust</option>
+                        <option value="staining">staining</option>
+                        <option value="peeling">peeling</option>
+                        <option value="bridge joint">bridge joint</option>
+                        <option value="road bleeding">road bleeding</option>
+                        <option value="vegetation">vegetation</option>
                     </select>
                 </div>
 
@@ -67,10 +73,13 @@
                     </div>
                 </div>
 
-                <div class="xl:col-span-1 border border-slate-200/60 dark:border-white/5 rounded-3xl p-5 bg-slate-50/50 dark:bg-[#080a0f]/50 h-full overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                <div class="xl:col-span-1 border border-slate-200/60 dark:border-white/5 rounded-3xl p-5 bg-slate-50/50 dark:bg-[#080a0f]/50 h-[450px] flex flex-col shadow-sm">
                     <div>
-                        <h5 class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4 border-b border-slate-200 dark:border-white/5 pb-2">Target Defect Classes</h5>
-                        <div id="ai-defects-list-tray" class="space-y-2.5 text-xs font-bold uppercase text-slate-400">
+                        <h5 class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4 border-b border-slate-200 dark:border-white/5 pb-2">
+                            Target Defect Classes
+                        </h5>
+                        
+                        <div id="ai-defects-list-tray" class="space-y-2.5 text-xs font-bold uppercase text-slate-400 max-h-[370px] overflow-y-auto pr-1.5 custom-scrollbar">
                             <p class="italic text-[10px] text-slate-400/70 lowercase py-4 text-center">no targets analyzed</p>
                         </div>
                     </div>
@@ -133,25 +142,41 @@
                 if (!response.ok) throw new Error("Inference pipeline failure.");
                 const result = await response.json();
                 
-                if (result.all_detections && result.all_detections.length > 0) {
-                    placeholder.classList.add('hidden');
-                    outputImg.src = base64ImageStringCache; 
-                    imgWrapper.classList.remove('hidden');
-                    
-                    outputImg.onload = function() {
+                // 🚀 UPDATED: Always display the uploaded image frame so manual annotations can be added
+                placeholder.classList.add('hidden');
+                outputImg.src = base64ImageStringCache; 
+                imgWrapper.classList.remove('hidden');
+
+                outputImg.onload = function() {
+                    if (result.all_detections && result.all_detections.length > 0) {
+                        // Map out the detections found by your custom weights model
                         activeDetectionsCollection = result.all_detections.map(d => ({
                             type: d.type,
                             bbox: d.bbox,
                             confidence: d.confidence,
                             isManual: false
                         }));
-                        renderInterfaceOverlayMatrix();
-                    };
-                } else {
-                    placeholder.classList.remove('hidden');
-                    placeholder.innerHTML = `<i data-lucide="check-circle" class="w-12 h-12 text-emerald-500 mb-2"></i><p class="text-[10px] uppercase font-black text-emerald-600">No flaws structural indices found.</p>`;
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
-                }
+                    } else {
+                        // No defects found by AI, initialize an empty collection so you can draw manual boxes
+                        activeDetectionsCollection = [];
+                    }
+                    renderInterfaceOverlayMatrix();
+
+                    // ⚡ REAL-TIME INTER-TAB TELEMETRY REACTION BROADCASTER DISPATCH
+                    const bridgeSelected = form.querySelector('select[name="bridge_name"]').value;
+                    const defectsCounted = activeDetectionsCollection.length;
+
+                    if (defectsCounted > 0) {
+                        const liveUpdateEvent = new CustomEvent('hoverscan:telemetry-update', {
+                            detail: {
+                                bridgeName: bridgeSelected,
+                                addedCount: defectsCounted
+                            }
+                        });
+                        document.dispatchEvent(liveUpdateEvent);
+                    }
+                };
+
             } catch (err) {
                 placeholder.classList.remove('hidden');
                 placeholder.innerHTML = `<i data-lucide="x-circle" class="w-12 h-12 text-rose-500 mb-2"></i><p class="text-[10px] uppercase font-black text-rose-500">Pipeline Execution Error.</p>`;
@@ -406,7 +431,7 @@
         crosshairBoxEl.style.height = ((y2 - y1) * 100) + '%';
     });
 
-    document.addEventListener('mouseup', function(e) {
+    document.addEventListener('mouseup', async function(e) {
         if (!isDrawingNode) return;
         isDrawingNode = false;
         
@@ -420,13 +445,58 @@
         const y2 = Math.max(0, Math.min(1, Math.max(startY, currentY)));
 
         if ((x2 - x1) > 0.01 && (y2 - y1) > 0.01) {
+            const form = document.getElementById('ai-inference-form');
             const targetClass = document.getElementById('manual-class-select').value;
+            const selectedBridge = form.querySelector('select[name="bridge_name"]').value;
+            const tempVal = form.querySelector('input[name="temperature"]').value;
+            const humidVal = form.querySelector('input[name="humidity"]').value;
+
+            // Determine severity matching structural hierarchy limits
+            let mappedSeverity = 'Low';
+            if (['potholes', 'crack', 'concrete spalling', 'road bleeding'].includes(targetClass)) mappedSeverity = 'High';
+            if (targetClass === 'spalling expose rebar') mappedSeverity = 'Critical';
+            if (['rust', 'vegetation', 'bridge joint'].includes(targetClass)) mappedSeverity = 'Medium';
+
+            // Append temporary UI canvas box frame locally
             activeDetectionsCollection.push({
                 type: targetClass,
                 bbox: [x1, y1, x2, y2],
                 confidence: null,
                 isManual: true
             });
+
+            try {
+                const syncResponse = await fetch('/web-api/defects/save-annotation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                    },
+                    body: JSON.stringify({
+                        bridge_name: selectedBridge,
+                        defect_class: targetClass,
+                        severity: mappedSeverity,
+                        temperature: tempVal,
+                        humidity: humidVal,
+                        image_path: document.getElementById('processed-output-img').src,
+                        // ⚡ FIXED: Send the coordinates array so it passes model validation rules
+                        bbox_coordinates: [x1, y1, x2, y2] 
+                    })
+                });
+
+                const syncResult = await syncResponse.json();
+                if (!syncResponse.ok) throw new Error(syncResult.message);
+
+                const liveUpdateEvent = new CustomEvent('hoverscan:telemetry-update', {
+                    detail: { bridgeName: selectedBridge, addedCount: 1 }
+                });
+                document.dispatchEvent(liveUpdateEvent);
+
+            } catch (syncErr) {
+                console.error("Database connection failure context:", syncErr);
+                alert("Warning: Canvas drawn locally but failed writing to master SQL log sequences.");
+            }
         }
         
         if (crosshairBoxEl) {
