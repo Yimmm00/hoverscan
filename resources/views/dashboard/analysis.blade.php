@@ -110,7 +110,7 @@
     let crosshairBoxEl = null;
     let base64ImageStringCache = null;
 
-    // 1. AI Inference Handling Pipeline Loop
+    // 1. AI Inference Handling Pipeline Loop with Integrated GPU Cache Engine
     document.getElementById('ai-inference-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const form = e.target;
@@ -120,6 +120,36 @@
         const outputImg = document.getElementById('processed-output-img');
         const overlay = document.getElementById('bbox-overlay-wrapper');
         
+        const fileInput = form.querySelector('input[type="file"]');
+        if (!fileInput.files || !fileInput.files[0]) return;
+
+        const selectedBridge = form.querySelector('select[name="bridge_name"]').value;
+        const targetFile = fileInput.files[0];
+
+        // ⚡ NEW CACHE CORE: Generate a unique fingerprint for this specific frame context
+        const cacheFingerprintKey = `hoverscan_cache_${btoa(selectedBridge)}_${targetFile.name}_${targetFile.size}`;
+
+        // Check if this image vector has already been evaluated during this session
+        const cachedTelemetryData = sessionStorage.getItem(cacheFingerprintKey);
+        
+        if (cachedTelemetryData) {
+            console.log("⚡ [Cache Hit] Serving frame coordinates instantly from session memory matrix.");
+            const cachedResult = JSON.parse(cachedTelemetryData);
+            
+            // Render interface frame from cache parameters directly without touching port 8001
+            placeholder.classList.add('hidden');
+            outputImg.src = cachedResult.base64Img;
+            imgWrapper.classList.remove('hidden');
+
+            outputImg.onload = function() {
+                activeDetectionsCollection = cachedResult.detections;
+                base64ImageStringCache = cachedResult.base64Img;
+                renderInterfaceOverlayMatrix();
+            };
+            return;
+        }
+
+        // ⚡ [Cache Miss] Proceed with standard deep-learning pipeline processing
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Running GPU Inference...`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -130,9 +160,6 @@
         activeDetectionsCollection = [];
         base64ImageStringCache = null;
 
-        const fileInput = form.querySelector('input[type="file"]');
-        if (!fileInput.files || !fileInput.files[0]) return;
-
         const reader = new FileReader();
         reader.onload = async function(event) {
             base64ImageStringCache = event.target.result;
@@ -142,40 +169,77 @@
                 if (!response.ok) throw new Error("Inference pipeline failure.");
                 const result = await response.json();
                 
-                // 🚀 UPDATED: Always display the uploaded image frame so manual annotations can be added
                 placeholder.classList.add('hidden');
                 outputImg.src = base64ImageStringCache; 
                 imgWrapper.classList.remove('hidden');
 
-                outputImg.onload = function() {
-                    if (result.all_detections && result.all_detections.length > 0) {
-                        // Map out the detections found by your custom weights model
-                        activeDetectionsCollection = result.all_detections.map(d => ({
-                            type: d.type,
-                            bbox: d.bbox,
-                            confidence: d.confidence,
-                            isManual: false
-                        }));
-                    } else {
-                        // No defects found by AI, initialize an empty collection so you can draw manual boxes
-                        activeDetectionsCollection = [];
-                    }
-                    renderInterfaceOverlayMatrix();
+            outputImg.onload = async function() {
+                if (result.all_detections && result.all_detections.length > 0) {
+                    activeDetectionsCollection = result.all_detections.map(d => ({
+                        type: d.type,
+                        bbox: d.bbox,
+                        confidence: d.confidence,
+                        isManual: false
+                    }));
+                } else {
+                    activeDetectionsCollection = [];
+                }
+                renderInterfaceOverlayMatrix();
 
-                    // ⚡ REAL-TIME INTER-TAB TELEMETRY REACTION BROADCASTER DISPATCH
-                    const bridgeSelected = form.querySelector('select[name="bridge_name"]').value;
-                    const defectsCounted = activeDetectionsCollection.length;
-
-                    if (defectsCounted > 0) {
-                        const liveUpdateEvent = new CustomEvent('hoverscan:telemetry-update', {
-                            detail: {
-                                bridgeName: bridgeSelected,
-                                addedCount: defectsCounted
-                            }
-                        });
-                        document.dispatchEvent(liveUpdateEvent);
-                    }
+                // ⚡ COMMIT TO CACHE
+                const telemetryCachePayload = {
+                    detections: activeDetectionsCollection,
+                    base64Img: base64ImageStringCache
                 };
+                sessionStorage.setItem(cacheFingerprintKey, JSON.stringify(telemetryCachePayload));
+
+                // ⚡ NEW: PERSIST AI DETECTIONS TO DATABASE
+                const formElement = document.getElementById('ai-inference-form');
+                const selectedBridge = formElement.querySelector('select[name="bridge_name"]').value;
+                const tempVal = formElement.querySelector('input[name="temperature"]').value;
+                const humidVal = formElement.querySelector('input[name="humidity"]').value;
+
+                for (const det of activeDetectionsCollection) {
+                    let mappedSeverity = 'Medium';
+                    const lowerType = det.type.toLowerCase().trim();
+
+                    if (['potholes', 'pothole', 'crack', 'concrete spalling', 'road bleeding'].includes(lowerType)) {
+                        mappedSeverity = 'High';
+                    } else if (lowerType === 'spalling expose rebar') {
+                        mappedSeverity = 'Critical';
+                    } else if (['mold', 'staining', 'peeling', 'rust', 'vegetation', 'bridge joint'].includes(lowerType)) {
+                        mappedSeverity = ['mold', 'staining', 'peeling'].includes(lowerType) ? 'Low' : 'Medium';
+                    }
+
+                    // Live UI update
+                    document.dispatchEvent(new CustomEvent('hoverscan:telemetry-update', {
+                        detail: { bridgeName: selectedBridge, addedCount: 1, defectClass: lowerType, severity: mappedSeverity }
+                    }));
+
+                    // Send payload to backend database
+                    try {
+                        await fetch('/web-api/defects/save-annotation', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                            },
+                            body: JSON.stringify({
+                                bridge_name: selectedBridge,
+                                defect_class: lowerType,
+                                severity: mappedSeverity,
+                                temperature: tempVal,
+                                humidity: humidVal,
+                                image_path: base64ImageStringCache,
+                                bbox_coordinates: det.bbox
+                            })
+                        });
+                    } catch (err) {
+                        console.error("AI auto-save sync failure:", err);
+                    }
+                }
+            };
 
             } catch (err) {
                 placeholder.classList.remove('hidden');
@@ -187,7 +251,7 @@
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         };
-        reader.readAsDataURL(fileInput.files[0]);
+        reader.readAsDataURL(targetFile);
     });
 
     // 2. MASTER RENDERING ENGINE FOR THE SCREEN LABELS & PRINT MIRRORS
@@ -370,7 +434,53 @@
         }
     }
 
-    window.removeAnnotationNode = function(index) {
+    window.removeAnnotationNode = async function(index) {
+        const targetDet = activeDetectionsCollection[index];
+        if (!targetDet) return;
+
+        // If it's a manual annotation box, delete it from the database first
+        if (targetDet.isManual) {
+            const form = document.getElementById('ai-inference-form');
+            const selectedBridge = form.querySelector('select[name="bridge_name"]').value;
+            const outputImg = document.getElementById('processed-output-img').src;
+
+            try {
+                const response = await fetch('/web-api/defects/delete-annotation', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                    },
+                    body: JSON.stringify({
+                        bridge_name: selectedBridge,
+                        defect_class: targetDet.type,
+                        image_path: outputImg
+                    })
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+
+                console.log("⚡ [Sync Delete] Record cleanly stripped from backend SQL tables.");
+
+                // Broadcast a negative count update to decrements dashboard metric metrics smoothly
+                const liveDecrementEvent = new CustomEvent('hoverscan:telemetry-update', {
+                    detail: { 
+                        bridgeName: selectedBridge, 
+                        addedCount: -1 // ⚡ Subtracts 1 from counters and chart bars!
+                    }
+                });
+                document.dispatchEvent(liveDecrementEvent);
+
+            } catch (err) {
+                console.error("Database deletion failed:", err);
+                alert("Warning: Could not remove record from database.");
+                return; // Stop execution to keep UI and DB in sync
+            }
+        }
+
+        // Remove from the local array and re-render the viewport layout context
         activeDetectionsCollection.splice(index, 1);
         renderInterfaceOverlayMatrix();
     };
@@ -485,11 +595,14 @@
                     })
                 });
 
-                const syncResult = await syncResponse.json();
-                if (!syncResponse.ok) throw new Error(syncResult.message);
-
+                // Inside your AI analysis upload loop / manual drawings listeners inside analysis.blade.php:
                 const liveUpdateEvent = new CustomEvent('hoverscan:telemetry-update', {
-                    detail: { bridgeName: selectedBridge, addedCount: 1 }
+                    detail: {
+                        bridgeName: selectedBridge,
+                        addedCount: 1, // (or -1 inside window.removeAnnotationNode)
+                        defectClass: targetClass, // e.g. 'vegetation'
+                        severity: mappedSeverity // e.g. 'Medium'
+                    }
                 });
                 document.dispatchEvent(liveUpdateEvent);
 
