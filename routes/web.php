@@ -34,7 +34,8 @@ Route::post('/web-api/defects/save-annotation', function (Request $request) {
         'image_path'       => 'nullable|string',
         'temperature'      => 'nullable|numeric',
         'humidity'         => 'nullable|numeric',
-        'bbox_coordinates' => 'required|array', // ⚡ Added validation check
+        'bbox_coordinates' => 'required|array',
+        'confidence_score' => 'nullable|numeric', // ⚡ 1. Add validation check
     ]);
 
     $datasetId = 'AST-' . strtoupper(substr(md5(uniqid()), 0, 10));
@@ -44,11 +45,11 @@ Route::post('/web-api/defects/save-annotation', function (Request $request) {
         'bridge_name'      => $validated['bridge_name'],
         'defect_class'     => $validated['defect_class'],
         'severity'         => $validated['severity'],
-        'confidence_score' => null, 
+        'confidence_score' => $validated['confidence_score'] ?? null, // ⚡ 2. Save the value if passed, otherwise default to null
         'image_path'       => $validated['image_path'],
         'temperature'      => $validated['temperature'] ?? 31,
         'humidity'         => $validated['humidity'] ?? 78,
-        'bbox_coordinates' => $validated['bbox_coordinates'], // ⚡ Saved array coordinates directly
+        'bbox_coordinates' => $validated['bbox_coordinates'],
     ]);
 
     return response()->json([
@@ -56,6 +57,34 @@ Route::post('/web-api/defects/save-annotation', function (Request $request) {
         'message' => 'Manual annotation successfully logged to permanent ledger indexes.',
         'data'    => $record
     ]);
+});
+
+// ⚡ NEW: Internal Web AJAX: Resolve a live structural flaw anomaly vector
+Route::post('/web-api/defects/resolve', function (Illuminate\Http\Request $request) {
+    $validated = $request->validate([
+        'id' => 'required|integer',
+    ]);
+
+    // Find the active defect record
+    $record = DefectRecord::find($validated['id']);
+
+    if ($record) {
+        // Option A: If you want to keep the history, you would set a status code column here:
+        // $record->update(['status' => 'resolved']);
+        
+        // Option B: If you want to drop it from active counts immediately (matching current project structure):
+        $record->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Anomaly vector securely moved from active matrices to resolved archive pools.'
+        ]);
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Target anomaly ledger record could not be located.'
+    ], 404);
 });
 
 Route::get('/web-api/dashboard/filter', function (Illuminate\Http\Request $request) {

@@ -4,11 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes; // ⚡ 1. Import
 
 class DefectRecord extends Model
 {
-    // ⚡ FIX: Tell Laravel this table does not track standard Eloquent timestamps (prevents updated_at crash)
-    public $timestamps = false;
+    use SoftDeletes; // ⚡ 2. Initialize
+
+    public $timestamps = false; 
+    
+    // Tell Eloquent that deleted_at is your lone active mutation tracker
+    const DELETED_AT = 'deleted_at'; 
 
     protected $fillable = [
         'dataset_id', 'bridge_name', 'defect_class', 'severity', 
@@ -19,6 +24,7 @@ class DefectRecord extends Model
         'bbox_coordinates' => 'array',
         'confidence_score' => 'float',
         'created_at' => 'datetime:Y-m-d H:i',
+        'deleted_at' => 'datetime', // ⚡ 3. Cast explicitly
     ];
 
     public function bridge(): BelongsTo

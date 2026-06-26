@@ -8,8 +8,8 @@
             <div>
                 <div class="flex flex-col items-center justify-center text-center w-full mb-10 pt-4 px-2">
                     <div class="mb-4 shrink-0">
-                        <div class="w-20 h-20 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center text-blue-600 text-3xl font-black drop-shadow-[0_4px_12px_rgba(37,99,235,0.15)]">
-                            H
+                        <div class="w-32 h-32 flex items-center justify-center overflow-hidden">
+                            <img src="hoverscanimg.png" alt="Hoverscan Logo" class="h-28 w-auto object-contain" />
                         </div>
                     </div>
                 </div>
@@ -148,6 +148,7 @@
 
     document.addEventListener('DOMContentLoaded', () => { updateToggleIcon(); });
 
+    // Verification Hook within index.blade.php toggleBtn event listener
     toggleBtn.addEventListener('click', () => {
         if (document.documentElement.classList.contains('dark')) {
             document.documentElement.classList.remove('dark');
@@ -158,6 +159,7 @@
         }
         updateToggleIcon();
         
+        // Smooth dynamic structural reload matching your system pipeline themes
         if (typeof gisMapInstance !== 'undefined' && gisMapInstance && gisMapInstance.setStyle) {
             const isDark = document.documentElement.classList.contains('dark');
             const styleUrl = isDark

@@ -1,7 +1,23 @@
 <div id="view-panel-analysis" class="space-y-8 tab-panel-node hidden animate-fade-in">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2">
+        <div>
+            <h3 class="text-xl font-black uppercase italic tracking-tight text-slate-900 dark:text-white">Analysis Interface Matrix</h3>
+            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Execute core neural model inferences & review historical telemetry scans</p>
+        </div>
+
+        <div class="flex p-1 bg-slate-100 dark:bg-white/5 rounded-xl self-start sm:self-center">
+            <button type="button" id="toggle-scan-mode-btn" class="px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all bg-white dark:bg-[#0c0e14] text-blue-600 dark:text-blue-400 shadow-sm">
+                Run New Scan
+            </button>
+            <button type="button" id="toggle-history-mode-btn" class="px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
+                Inference History
+            </button>
+        </div>
+    </div>
+
+    <div id="analysis-workspace-scan" class="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
-        <div class="lg:col-span-1 p-8 rounded-[2.5rem] border border-slate-200/80 dark:border-white/5 bg-white dark:bg-[#0c0e14] h-fit shadow-sm">
+        <div class="xl:col-span-1 p-8 rounded-[2.5rem] border border-slate-200/80 dark:border-white/5 bg-white dark:bg-[#0c0e14] h-fit shadow-sm">
             <h4 class="font-black uppercase tracking-tight italic text-base mb-6 text-slate-900 dark:text-white">Upload New Scan Frame</h4>
             <form id="ai-inference-form" enctype="multipart/form-data" class="space-y-6 text-xs font-bold uppercase text-slate-600 dark:text-slate-400">
                 @csrf
@@ -25,7 +41,11 @@
                 </div>
                 <div>
                     <label class="text-[9px] text-slate-400 dark:text-slate-500 mb-1.5 block font-black">Select Capture Media Asset</label>
-                    <input type="file" name="file" accept="image/jpeg,image/png" required class="w-full text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:bg-blue-600/10 file:text-blue-600 dark:file:text-blue-500 hover:file:bg-blue-600/20 file:cursor-pointer">
+                    <div id="drop-zone-canvas" onclick="triggerFilePicker()" class="p-6 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#080a0f] text-center group cursor-pointer transition-all hover:border-blue-500 flex flex-col items-center justify-center gap-2 mb-2">
+                        <i data-lucide="upload-cloud" class="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                        <span id="dropzone-text-hint" class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Drag/Drop or Click to Browse</span>
+                    </div>
+                    <input type="file" id="inference-file-picker" name="file" accept="image/jpeg,image/png" onchange="syncFileHint(this)" required class="hidden">
                 </div>
                 <button type="submit" id="submit-btn" class="w-full py-3.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-2">
                     <i data-lucide="cpu" class="w-4 h-4"></i> Execute Core Inference
@@ -87,11 +107,37 @@
             </div>
         </div>
     </div>
+
+    <div id="analysis-workspace-history" class="hidden border border-slate-200/80 dark:border-white/5 rounded-[2.5rem] overflow-hidden bg-white dark:bg-[#0c0e14] h-[550px] flex flex-col shadow-sm animate-fade-in">
+        <div class="overflow-y-auto custom-scrollbar w-full flex-1">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 z-10">
+                    <tr class="border-b border-slate-200 dark:border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-[#0c0e14]">
+                        <th class="py-5 px-8">Sequence Target ID</th>
+                        <th class="py-5 px-6">Structure Name</th>
+                        <th class="py-5 px-6">Env Metrics</th>
+                        <th class="py-5 px-6">Execution Timestamp</th>
+                        <th class="py-5 px-6 text-center">Status Matrix</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-white/5 text-xs font-bold text-slate-600 dark:text-slate-300" id="inference-history-table-body">
+                    <tr class="opacity-60">
+                        <td class="py-5 px-8 font-mono text-blue-500 font-bold">#AST-4D8E9A2B</td>
+                        <td class="py-5 px-6 font-black uppercase italic text-slate-900 dark:text-white">DARUL HANA S-BRIDGE</td>
+                        <td class="py-5 px-6 font-mono text-[11px] text-slate-400">31°C / 78% RH</td>
+                        <td class="py-5 px-6 text-slate-400">2026-06-25 10:14</td>
+                        <td class="py-5 px-6 text-center">
+                            <span class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500">Processed</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 @push('view-scripts')
 <script>
-    // ⚡ BYPASS GLOBAL TRUSTED TYPES DIRECTIVES ON SYSTEM RUNTIMES
     if (window.trustedTypes && window.trustedTypes.createPolicy) {
         if (!window.trustedTypes.defaultPolicy) {
             window.trustedTypes.createPolicy('default', {
@@ -110,7 +156,107 @@
     let crosshairBoxEl = null;
     let base64ImageStringCache = null;
 
-    // 1. AI Inference Handling Pipeline Loop with Integrated GPU Cache Engine
+    // ⚡ Direct Native Triggers to bypass DOM binding latencies
+    function triggerFilePicker() {
+        document.getElementById('inference-file-picker').click();
+    }
+
+    function syncFileHint(inputElement) {
+        const textHint = document.getElementById('dropzone-text-hint');
+        if (inputElement.files && inputElement.files[0]) {
+            textHint.innerText = inputElement.files[0].name.toUpperCase();
+        } else {
+            textHint.innerText = "DRAG/DROP OR CLICK TO BROWSE";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const dropZone = document.getElementById('drop-zone-canvas');
+        const filePicker = document.getElementById('inference-file-picker');
+        const hintText = document.getElementById('dropzone-text-hint');
+
+        // Sub-tabs Toggle Engine Routing Controller Threads
+        const scanBtn = document.getElementById('toggle-scan-mode-btn');
+        const historyBtn = document.getElementById('toggle-history-mode-btn');
+        const scanPane = document.getElementById('analysis-workspace-scan');
+        const historyPane = document.getElementById('analysis-workspace-history');
+
+        scanBtn.addEventListener('click', () => {
+            toggleModeStyle(scanBtn, historyBtn);
+            scanPane.classList.remove('hidden');
+            historyPane.classList.add('hidden');
+        });
+
+        historyBtn.addEventListener('click', () => {
+            toggleModeStyle(historyBtn, scanBtn);
+            scanPane.classList.add('hidden');
+            historyPane.classList.remove('hidden');
+            loadInferenceHistoryGrid();
+        });
+
+        function toggleModeStyle(active, inactive) {
+            active.className = "px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all bg-white dark:bg-[#0c0e14] text-blue-600 dark:text-blue-400 shadow-sm";
+            inactive.className = "px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300";
+        }
+
+        // Drag and Drop State Events
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-500', 'bg-blue-500/[0.02]');
+        });
+
+        ['dragleave', 'drop'].forEach(evName => {
+            dropZone.addEventListener(evName, () => {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-500/[0.02]');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files.length) {
+                filePicker.files = e.dataTransfer.files;
+                hintText.innerText = e.dataTransfer.files[0].name.toUpperCase();
+            }
+        });
+
+        async function loadInferenceHistoryGrid() {
+            const tableBody = document.getElementById('inference-history-table-body');
+            tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs font-black tracking-widest text-blue-500 uppercase"><div class="flex items-center justify-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Syncing Historical Execution Ledger Matrices...</div></td></tr>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            try {
+                // ⚡ CHANGE THIS LINE: Point it to your existing internal dashboard filter endpoint
+                const response = await fetch('/web-api/dashboard/filter?range=all');
+                const result = await response.json();
+                
+                // ⚡ CHANGE THIS LINE: Read from result.logs instead of raw array
+                if (result && result.success && result.logs.length > 0) {
+                    tableBody.innerHTML = result.logs.map((log, idx) => `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors duration-150">
+                            <td class="py-5 px-8 font-mono text-blue-500 font-bold uppercase">${log.dataset_id || '#AST-UNKNOWN'}</td>
+                            <td class="py-5 px-6 font-black uppercase italic text-slate-900 dark:text-white">${log.bridge_name}</td>
+                            <td class="py-5 px-6 font-mono text-[11px] text-slate-400 dark:text-slate-500">${log.temperature}°C / ${log.humidity}% RH</td>
+                            <td class="py-5 px-6 text-slate-400 dark:text-slate-500">${log.created_at}</td>
+                            <td class="py-5 px-6 text-center">
+                                <span class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${log.confidence_score ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}">
+                                    ${log.confidence_score ? 'AI Processed' : 'Manual Log'}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs uppercase font-bold text-slate-400 tracking-widest">No previous executions found in active ledger maps.</td></tr>`;
+                }
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs font-bold text-rose-500 uppercase">Error parsing automated matrix sequence trails.</td></tr>`;
+            }
+        }
+    });
+
+        // AI Inference Handling Pipeline Loop
+        // ⚡ REMOVE BOTH OLD SUBMIT LISTENERS AND REPLACE WITH THIS ONE CLEAN UNIFIED EVENT HANDLER:
     document.getElementById('ai-inference-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const form = e.target;
@@ -126,17 +272,11 @@
         const selectedBridge = form.querySelector('select[name="bridge_name"]').value;
         const targetFile = fileInput.files[0];
 
-        // ⚡ NEW CACHE CORE: Generate a unique fingerprint for this specific frame context
         const cacheFingerprintKey = `hoverscan_cache_${btoa(selectedBridge)}_${targetFile.name}_${targetFile.size}`;
-
-        // Check if this image vector has already been evaluated during this session
         const cachedTelemetryData = sessionStorage.getItem(cacheFingerprintKey);
         
         if (cachedTelemetryData) {
-            console.log("⚡ [Cache Hit] Serving frame coordinates instantly from session memory matrix.");
             const cachedResult = JSON.parse(cachedTelemetryData);
-            
-            // Render interface frame from cache parameters directly without touching port 8001
             placeholder.classList.add('hidden');
             outputImg.src = cachedResult.base64Img;
             imgWrapper.classList.remove('hidden');
@@ -149,7 +289,6 @@
             return;
         }
 
-        // ⚡ [Cache Miss] Proceed with standard deep-learning pipeline processing
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Running GPU Inference...`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -173,73 +312,69 @@
                 outputImg.src = base64ImageStringCache; 
                 imgWrapper.classList.remove('hidden');
 
-            outputImg.onload = async function() {
-                if (result.all_detections && result.all_detections.length > 0) {
-                    activeDetectionsCollection = result.all_detections.map(d => ({
-                        type: d.type,
-                        bbox: d.bbox,
-                        confidence: d.confidence,
-                        isManual: false
-                    }));
-                } else {
-                    activeDetectionsCollection = [];
-                }
-                renderInterfaceOverlayMatrix();
+                outputImg.onload = async function() {
+                    if (result.all_detections && result.all_detections.length > 0) {
+                        activeDetectionsCollection = result.all_detections.map(d => ({
+                            type: d.type,
+                            bbox: d.bbox,
+                            confidence: d.confidence,
+                            isManual: false
+                        }));
+                    } else {
+                        activeDetectionsCollection = [];
+                    }
+                    renderInterfaceOverlayMatrix();
 
-                // ⚡ COMMIT TO CACHE
-                const telemetryCachePayload = {
-                    detections: activeDetectionsCollection,
-                    base64Img: base64ImageStringCache
+                    const telemetryCachePayload = {
+                        detections: activeDetectionsCollection,
+                        base64Img: base64ImageStringCache
+                    };
+                    sessionStorage.setItem(cacheFingerprintKey, JSON.stringify(telemetryCachePayload));
+
+                    const tempVal = form.querySelector('input[name="temperature"]').value;
+                    const humidVal = form.querySelector('input[name="humidity"]').value;
+
+                    // ⚡ FIRES EXACTLY ONCE PER DEFECT DETECTED BY AI LOOP
+                    for (const det of activeDetectionsCollection) {
+                        let mappedSeverity = 'Medium';
+                        const lowerType = det.type.toLowerCase().trim();
+
+                        if (['potholes', 'pothole', 'crack', 'concrete spalling', 'road bleeding'].includes(lowerType)) {
+                            mappedSeverity = 'High';
+                        } else if (lowerType === 'spalling expose rebar') {
+                            mappedSeverity = 'Critical';
+                        } else if (['mold', 'staining', 'peeling', 'rust', 'vegetation', 'bridge joint'].includes(lowerType)) {
+                            mappedSeverity = ['mold', 'staining', 'peeling'].includes(lowerType) ? 'Low' : 'Medium';
+                        }
+
+                        document.dispatchEvent(new CustomEvent('hoverscan:telemetry-update', {
+                            detail: { bridgeName: selectedBridge, addedCount: 1, defectClass: lowerType, severity: mappedSeverity }
+                        }));
+
+                        try {
+                            await fetch('/web-api/defects/save-annotation', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                                },
+                                body: JSON.stringify({
+                                    bridge_name: selectedBridge,
+                                    defect_class: lowerType,
+                                    severity: mappedSeverity,
+                                    temperature: tempVal,
+                                    humidity: humidVal,
+                                    image_path: base64ImageStringCache,
+                                    bbox_coordinates: det.bbox,
+                                    confidence_score: det.confidence // Correctly tracking AI Processed status badges
+                                })
+                            });
+                        } catch (err) {
+                            console.error("AI auto-save sync failure:", err);
+                        }
+                    }
                 };
-                sessionStorage.setItem(cacheFingerprintKey, JSON.stringify(telemetryCachePayload));
-
-                // ⚡ NEW: PERSIST AI DETECTIONS TO DATABASE
-                const formElement = document.getElementById('ai-inference-form');
-                const selectedBridge = formElement.querySelector('select[name="bridge_name"]').value;
-                const tempVal = formElement.querySelector('input[name="temperature"]').value;
-                const humidVal = formElement.querySelector('input[name="humidity"]').value;
-
-                for (const det of activeDetectionsCollection) {
-                    let mappedSeverity = 'Medium';
-                    const lowerType = det.type.toLowerCase().trim();
-
-                    if (['potholes', 'pothole', 'crack', 'concrete spalling', 'road bleeding'].includes(lowerType)) {
-                        mappedSeverity = 'High';
-                    } else if (lowerType === 'spalling expose rebar') {
-                        mappedSeverity = 'Critical';
-                    } else if (['mold', 'staining', 'peeling', 'rust', 'vegetation', 'bridge joint'].includes(lowerType)) {
-                        mappedSeverity = ['mold', 'staining', 'peeling'].includes(lowerType) ? 'Low' : 'Medium';
-                    }
-
-                    // Live UI update
-                    document.dispatchEvent(new CustomEvent('hoverscan:telemetry-update', {
-                        detail: { bridgeName: selectedBridge, addedCount: 1, defectClass: lowerType, severity: mappedSeverity }
-                    }));
-
-                    // Send payload to backend database
-                    try {
-                        await fetch('/web-api/defects/save-annotation', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
-                            },
-                            body: JSON.stringify({
-                                bridge_name: selectedBridge,
-                                defect_class: lowerType,
-                                severity: mappedSeverity,
-                                temperature: tempVal,
-                                humidity: humidVal,
-                                image_path: base64ImageStringCache,
-                                bbox_coordinates: det.bbox
-                            })
-                        });
-                    } catch (err) {
-                        console.error("AI auto-save sync failure:", err);
-                    }
-                }
-            };
 
             } catch (err) {
                 placeholder.classList.remove('hidden');
@@ -254,7 +389,6 @@
         reader.readAsDataURL(targetFile);
     });
 
-    // 2. MASTER RENDERING ENGINE FOR THE SCREEN LABELS & PRINT MIRRORS
     function renderInterfaceOverlayMatrix() {
         const overlay = document.getElementById('bbox-overlay-wrapper');
         const printOverlay = document.getElementById('print-bbox-overlay');
@@ -438,7 +572,6 @@
         const targetDet = activeDetectionsCollection[index];
         if (!targetDet) return;
 
-        // If it's a manual annotation box, delete it from the database first
         if (targetDet.isManual) {
             const form = document.getElementById('ai-inference-form');
             const selectedBridge = form.querySelector('select[name="bridge_name"]').value;
@@ -462,13 +595,10 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
 
-                console.log("⚡ [Sync Delete] Record cleanly stripped from backend SQL tables.");
-
-                // Broadcast a negative count update to decrements dashboard metric metrics smoothly
                 const liveDecrementEvent = new CustomEvent('hoverscan:telemetry-update', {
                     detail: { 
                         bridgeName: selectedBridge, 
-                        addedCount: -1 // ⚡ Subtracts 1 from counters and chart bars!
+                        addedCount: -1 
                     }
                 });
                 document.dispatchEvent(liveDecrementEvent);
@@ -476,11 +606,10 @@
             } catch (err) {
                 console.error("Database deletion failed:", err);
                 alert("Warning: Could not remove record from database.");
-                return; // Stop execution to keep UI and DB in sync
+                return;
             }
         }
 
-        // Remove from the local array and re-render the viewport layout context
         activeDetectionsCollection.splice(index, 1);
         renderInterfaceOverlayMatrix();
     };
@@ -561,13 +690,11 @@
             const tempVal = form.querySelector('input[name="temperature"]').value;
             const humidVal = form.querySelector('input[name="humidity"]').value;
 
-            // Determine severity matching structural hierarchy limits
             let mappedSeverity = 'Low';
             if (['potholes', 'crack', 'concrete spalling', 'road bleeding'].includes(targetClass)) mappedSeverity = 'High';
             if (targetClass === 'spalling expose rebar') mappedSeverity = 'Critical';
             if (['rust', 'vegetation', 'bridge joint'].includes(targetClass)) mappedSeverity = 'Medium';
 
-            // Append temporary UI canvas box frame locally
             activeDetectionsCollection.push({
                 type: targetClass,
                 bbox: [x1, y1, x2, y2],
@@ -590,18 +717,16 @@
                         temperature: tempVal,
                         humidity: humidVal,
                         image_path: document.getElementById('processed-output-img').src,
-                        // ⚡ FIXED: Send the coordinates array so it passes model validation rules
                         bbox_coordinates: [x1, y1, x2, y2] 
                     })
                 });
 
-                // Inside your AI analysis upload loop / manual drawings listeners inside analysis.blade.php:
                 const liveUpdateEvent = new CustomEvent('hoverscan:telemetry-update', {
                     detail: {
                         bridgeName: selectedBridge,
-                        addedCount: 1, // (or -1 inside window.removeAnnotationNode)
-                        defectClass: targetClass, // e.g. 'vegetation'
-                        severity: mappedSeverity // e.g. 'Medium'
+                        addedCount: 1,
+                        defectClass: targetClass,
+                        severity: mappedSeverity
                     }
                 });
                 document.dispatchEvent(liveUpdateEvent);
@@ -685,15 +810,11 @@
         });
     }
 
-   // 7. 🚀 UPGRADED SEAMLESS BACKDROP IFRAME PRINTER ENGINE (FIXED LOGO & PERFECT PAGE BREAKS)
     function executeReportPrint() {
         const reportContent = document.getElementById('hoverscan-print-template').innerHTML;
-        
-        // 1. Remove any old leftover frame instances from the DOM
         const existingFrame = document.getElementById('hoverscan-silent-print-frame');
         if (existingFrame) existingFrame.remove();
 
-        // 2. Create a completely invisible iframe hidden safely from view
         const iframe = document.createElement('iframe');
         iframe.id = 'hoverscan-silent-print-frame';
         iframe.style.position = 'fixed';
@@ -708,7 +829,6 @@
         iframe.style.pointerEvents = 'none';
 
         document.body.appendChild(iframe);
-
         const frameDoc = iframe.contentWindow.document || iframe.contentDocument;
         
         frameDoc.open();
@@ -730,43 +850,23 @@
                         print-color-adjust: exact !important;
                     }
                     .font-mono { font-family: 'JetBrains Mono', monospace !important; }
-                    
-                    /* ⚡ PROFESSIONAL PRINT PAGE LAYOUT BREAK BALANCING CONTROLS */
                     @media print {
                         body { padding: 0; margin: 0; }
-                        @page { 
-                            size: A4 portrait; 
-                            margin: 20mm 15mm 20mm 15mm; 
-                        }
-                        
-                        /* Forces entire main sections to avoid slicing in half */
-                        h3, table, .grid {
-                            break-inside: avoid !important;
-                            page-break-inside: avoid !important;
-                        }
+                        @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
+                        h3, table, .grid { break-inside: avoid !important; page-break-inside: avoid !important; }
                     }
                     img { max-width: 100%; object-fit: contain; }
                 </style>
             </head>
             <body>
-                <div style="width: 100%; max-w-[190mm]; margin: 0 auto;">
-                    ${reportContent}
-                </div>
+                <div style="width: 100%; max-w-[190mm]; margin: 0 auto;">${reportContent}</div>
                 <script>
-                    // ⚡ ASYNC LOGO RECOVERY REPAIR ENGINE
-                    const logoImg = document.querySelector('img[alt="Hoverscan Logo"]');
+                    const logoImg = document.querySelector('img[alt=\"Hoverscan Logo\"]');
                     if (logoImg) {
-                        // Re-route the path explicitly to verify local directory asset mapping lines
                         logoImg.src = window.location.origin + '/hoverscanimg.png';
-                        
-                        // Hide broken image frames gracefully if the asset file itself is missing
-                        logoImg.onerror = function() {
-                            this.style.display = 'none';
-                        };
+                        logoImg.onerror = function() { this.style.display = 'none'; };
                     }
-
                     window.onload = function() {
-                        // Allow Tailwind CDN parsing engine to map responsive vectors cleanly in background thread memory
                         setTimeout(() => {
                             window.focus();
                             window.print();
