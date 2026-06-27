@@ -45,7 +45,7 @@
                         <i data-lucide="upload-cloud" class="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
                         <span id="dropzone-text-hint" class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Drag/Drop or Click to Browse</span>
                     </div>
-                    <input type="file" id="inference-file-picker" name="file" accept="image/jpeg,image/png" onchange="syncFileHint(this)" required class="hidden">
+                    <input type="file" id="inference-file-picker" name="file" accept="image/jpeg,image/png,video/mp4,video/mpeg,video/quicktime,video/x-msvideo" onchange="syncFileHint(this)" required class="hidden">
                 </div>
                 <button type="submit" id="submit-btn" class="w-full py-3.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-2">
                     <i data-lucide="cpu" class="w-4 h-4"></i> Execute Core Inference
@@ -76,7 +76,7 @@
                     </select>
                 </div>
 
-                <button type="button" onclick="executeReportPrint()" class="px-4 py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 shadow cursor-pointer">
+                <button type="button" id="report-print-btn" onclick="executeReportPrint()" class="px-4 py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 shadow cursor-pointer">
                     <i data-lucide="printer" class="w-4 h-4"></i> Export Inspection Report
                 </button>
             </div>
@@ -87,8 +87,12 @@
                         <i data-lucide="image" class="w-12 h-12 stroke-[1.5]"></i>
                         <p class="text-[10px] uppercase font-black tracking-widest">Awaiting Media Processing Frame Target</p>
                     </div>
+                    
                     <div id="image-viewport-wrapper" class="relative max-w-full max-h-[400px] hidden select-none crosshair-canvas-node">
                         <img id="processed-output-img" class="max-w-full max-h-[400px] object-contain rounded-xl block shadow-sm" src="" draggable="false">
+                        
+                        <video id="processed-output-video" class="max-w-full max-h-[400px] object-contain rounded-xl hidden shadow-sm" controls autoplay loop></video>
+                        
                         <div id="bbox-overlay-wrapper" class="absolute inset-0 pointer-events-auto"></div>
                     </div>
                 </div>
@@ -156,7 +160,6 @@
     let crosshairBoxEl = null;
     let base64ImageStringCache = null;
 
-    // ⚡ Direct Native Triggers to bypass DOM binding latencies
     function triggerFilePicker() {
         document.getElementById('inference-file-picker').click();
     }
@@ -175,7 +178,6 @@
         const filePicker = document.getElementById('inference-file-picker');
         const hintText = document.getElementById('dropzone-text-hint');
 
-        // Sub-tabs Toggle Engine Routing Controller Threads
         const scanBtn = document.getElementById('toggle-scan-mode-btn');
         const historyBtn = document.getElementById('toggle-history-mode-btn');
         const scanPane = document.getElementById('analysis-workspace-scan');
@@ -199,7 +201,6 @@
             inactive.className = "px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300";
         }
 
-        // Drag and Drop State Events
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('border-blue-500', 'bg-blue-500/[0.02]');
@@ -218,45 +219,42 @@
                 hintText.innerText = e.dataTransfer.files[0].name.toUpperCase();
             }
         });
-
-        async function loadInferenceHistoryGrid() {
-            const tableBody = document.getElementById('inference-history-table-body');
-            tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs font-black tracking-widest text-blue-500 uppercase"><div class="flex items-center justify-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Syncing Historical Execution Ledger Matrices...</div></td></tr>`;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-
-            try {
-                // ⚡ CHANGE THIS LINE: Point it to your existing internal dashboard filter endpoint
-                const response = await fetch('/web-api/dashboard/filter?range=all');
-                const result = await response.json();
-                
-                // ⚡ CHANGE THIS LINE: Read from result.logs instead of raw array
-                if (result && result.success && result.logs.length > 0) {
-                    tableBody.innerHTML = result.logs.map((log, idx) => `
-                        <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors duration-150">
-                            <td class="py-5 px-8 font-mono text-blue-500 font-bold uppercase">${log.dataset_id || '#AST-UNKNOWN'}</td>
-                            <td class="py-5 px-6 font-black uppercase italic text-slate-900 dark:text-white">${log.bridge_name}</td>
-                            <td class="py-5 px-6 font-mono text-[11px] text-slate-400 dark:text-slate-500">${log.temperature}°C / ${log.humidity}% RH</td>
-                            <td class="py-5 px-6 text-slate-400 dark:text-slate-500">${log.created_at}</td>
-                            <td class="py-5 px-6 text-center">
-                                <span class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${log.confidence_score ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}">
-                                    ${log.confidence_score ? 'AI Processed' : 'Manual Log'}
-                                </span>
-                            </td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs uppercase font-bold text-slate-400 tracking-widest">No previous executions found in active ledger maps.</td></tr>`;
-                }
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            } catch (err) {
-                console.error(err);
-                tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs font-bold text-rose-500 uppercase">Error parsing automated matrix sequence trails.</td></tr>`;
-            }
-        }
     });
 
-        // AI Inference Handling Pipeline Loop
-        // ⚡ REMOVE BOTH OLD SUBMIT LISTENERS AND REPLACE WITH THIS ONE CLEAN UNIFIED EVENT HANDLER:
+    async function loadInferenceHistoryGrid() {
+        const tableBody = document.getElementById('inference-history-table-body');
+        tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs font-black tracking-widest text-blue-500 uppercase"><div class="flex items-center justify-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Syncing Historical Execution Ledger Matrices...</div></td></tr>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        try {
+            const response = await fetch('/web-api/dashboard/filter?range=all');
+            const result = await response.json();
+            
+            if (result && result.success && result.logs.length > 0) {
+                tableBody.innerHTML = result.logs.map((log, idx) => `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors duration-150">
+                        <td class="py-5 px-8 font-mono text-blue-500 font-bold uppercase">${log.dataset_id || '#AST-UNKNOWN'}</td>
+                        <td class="py-5 px-6 font-black uppercase italic text-slate-900 dark:text-white">${log.bridge_name}</td>
+                        <td class="py-5 px-6 font-mono text-[11px] text-slate-400 dark:text-slate-500">${log.temperature}°C / ${log.humidity}% RH</td>
+                        <td class="py-5 px-6 text-slate-400 dark:text-slate-500">${log.created_at}</td>
+                        <td class="py-5 px-6 text-center">
+                            <span class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${log.confidence_score ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}">
+                                ${log.confidence_score ? 'AI Processed' : 'Manual Log'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs uppercase font-bold text-slate-400 tracking-widest">No previous executions found in active ledger maps.</td></tr>`;
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } catch (err) {
+            console.error(err);
+            tableBody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-xs font-bold text-rose-500 uppercase">Error parsing automated matrix sequence trails.</td></tr>`;
+        }
+    }
+
+    // Unified AI Inference Handling Pipeline Loop (Supports Images & Real-time Video Tracking Stream)
     document.getElementById('ai-inference-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const form = e.target;
@@ -266,16 +264,24 @@
         const outputImg = document.getElementById('processed-output-img');
         const overlay = document.getElementById('bbox-overlay-wrapper');
         
-        const fileInput = form.querySelector('input[type="file"]');
+        const fileInput = document.getElementById('inference-file-picker');
         if (!fileInput.files || !fileInput.files[0]) return;
 
         const selectedBridge = form.querySelector('select[name="bridge_name"]').value;
         const targetFile = fileInput.files[0];
+        const isVideoFile = targetFile.type.startsWith('video/');
 
         const cacheFingerprintKey = `hoverscan_cache_${btoa(selectedBridge)}_${targetFile.name}_${targetFile.size}`;
         const cachedTelemetryData = sessionStorage.getItem(cacheFingerprintKey);
         
-        if (cachedTelemetryData) {
+        overlay.innerHTML = '';
+        activeDetectionsCollection = [];
+        base64ImageStringCache = null;
+
+        const actionButtonContainer = document.getElementById('print-action-button-container');
+        if (actionButtonContainer) actionButtonContainer.classList.add('hidden');
+
+        if (!isVideoFile && cachedTelemetryData) {
             const cachedResult = JSON.parse(cachedTelemetryData);
             placeholder.classList.add('hidden');
             outputImg.src = cachedResult.base64Img;
@@ -289,18 +295,135 @@
             return;
         }
 
+        // 🎥 PIPELINE A: PROGRESSIVE VIDEO ANALYTICS ROUTINE (SSE)
+        if (isVideoFile) {
+            submitBtn.disabled = true;
+            placeholder.classList.remove('hidden');
+            imgWrapper.classList.add('hidden');
+            
+            placeholder.innerHTML = `
+                <i data-lucide="video" class="w-12 h-12 text-blue-500 animate-pulse mb-3"></i>
+                <p class="text-[10px] uppercase font-black tracking-widest text-blue-500">Initializing Video Pipeline...</p>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            const videoPayloadData = new FormData(form);
+            if(!videoPayloadData.has('humidity')) videoPayloadData.append('humidity', form.querySelector('input[name="humidity"]').value);
+            if(!videoPayloadData.has('temperature')) videoPayloadData.append('temperature', form.querySelector('input[name="temperature"]').value);
+
+            try {
+                const response = await fetch('http://127.0.0.1:8001/analyze-video', {
+                    method: 'POST',
+                    body: videoPayloadData
+                });
+
+                if (!response.ok) throw new Error("Video inference pipeline encountered an internal thread failure.");
+                
+                const streamReader = response.body.getReader();
+                const stringDecoder = new TextDecoder("utf-8");
+                let internalBufferStr = "";
+
+                while (true) {
+                    const { value, done } = await streamReader.read();
+                    if (done) break;
+                    
+                    internalBufferStr += stringDecoder.decode(value, { stream: true });
+                    const eventLines = internalBufferStr.split('\n');
+                    internalBufferStr = eventLines.pop(); 
+                    
+                    for (const eventLine of eventLines) {
+                        const cleanLineStr = eventLine.trim();
+                        if (!cleanLineStr.startsWith('data: ')) continue;
+                        
+                        const jsonRawString = cleanLineStr.replace('data: ', '').trim();
+                        if (!jsonRawString) continue;
+
+                        try {
+                            const ssePayload = JSON.parse(jsonRawString);
+                            
+                            if (ssePayload.status === 'processing') {
+                                submitBtn.innerHTML = `<span class="flex items-center gap-2 justify-center"><i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> PROCESSING ${ssePayload.progress}%</span>`;
+                                placeholder.innerHTML = `
+                                    <i data-lucide="activity" class="w-12 h-12 text-blue-500 animate-bounce mb-3"></i>
+                                    <p class="text-[10px] uppercase font-black tracking-widest text-slate-800 dark:text-white">Analyzing Frame Sequences...</p>
+                                    <p class="text-[9px] font-mono font-bold text-blue-500 mt-1">${ssePayload.progress}% COMPLETE</p>
+                                `;
+                                if (typeof lucide !== 'undefined') lucide.createIcons();
+                            }
+                            
+                            if (ssePayload.status === 'complete') {
+                                placeholder.classList.add('hidden');
+                                imgWrapper.classList.remove('hidden');
+                                
+                                const outputVideo = document.getElementById('processed-output-video');
+                                const outputImg = document.getElementById('processed-output-img');
+                                
+                                outputImg.classList.add('hidden');
+                                outputVideo.classList.remove('hidden');
+                                
+                                outputVideo.src = `http://127.0.0.1:8001${ssePayload.video_url}`;
+                                outputVideo.load();
+                                outputVideo.play();
+                                
+                                base64ImageStringCache = `http://127.0.0.1:8001${ssePayload.snapshot_url}`; 
+                                
+                                activeDetectionsCollection = ssePayload.all_detections.map(d => ({
+                                    type: d.type,
+                                    bbox: d.bbox,
+                                    confidence: d.confidence,
+                                    isManual: false
+                                }));
+                                
+                                renderInterfaceOverlayMatrix();
+                                
+                                activeDetectionsCollection.forEach(det => {
+                                    let mappedSeverity = 'Medium';
+                                    const lowerType = det.type.toLowerCase().trim();
+                                    if (['potholes', 'pothole', 'crack', 'concrete spalling'].includes(lowerType)) mappedSeverity = 'High';
+                                    if (lowerType === 'spalling expose rebar') mappedSeverity = 'Critical';
+                                    
+                                    document.dispatchEvent(new CustomEvent('hoverscan:telemetry-update', {
+                                        detail: { bridgeName: selectedBridge, addedCount: 1, defectClass: lowerType, severity: mappedSeverity }
+                                    }));
+                                });
+                                
+                                alert("Success! High-resolution video stream tracked and logged cleanly across SQL tables.");
+                            }
+                            
+                            if (ssePayload.status === 'error') {
+                                throw new Error(ssePayload.message);
+                            }
+                        } catch (jsonErr) {
+                            console.debug("Parsing chunk buffer break:", jsonErr);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                placeholder.classList.remove('hidden');
+                placeholder.innerHTML = `<i data-lucide="alert-triangle" class="w-12 h-12 text-rose-500 mb-2"></i><p class="text-[10px] uppercase font-black text-rose-500">Video Tracking Fault.</p>`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i data-lucide="cpu" class="w-4 h-4"></i> Execute Core Inference`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            return;
+        }
+
+        // 🖼️ PIPELINE B: ORIGINAL IMAGE INFERENCE ROUTINE
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Running GPU Inference...`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         
         placeholder.classList.remove('hidden');
         imgWrapper.classList.add('hidden');
-        overlay.innerHTML = '';
-        activeDetectionsCollection = [];
-        base64ImageStringCache = null;
 
-        const reader = new FileReader();
-        reader.onload = async function(event) {
+        document.getElementById('processed-output-img').classList.remove('hidden');
+        document.getElementById('processed-output-video').classList.add('hidden');
+
+        const imageReaderInstance = new FileReader();
+        imageReaderInstance.onload = async function(event) {
             base64ImageStringCache = event.target.result;
 
             try {
@@ -323,6 +446,7 @@
                     } else {
                         activeDetectionsCollection = [];
                     }
+                    
                     renderInterfaceOverlayMatrix();
 
                     const telemetryCachePayload = {
@@ -334,7 +458,6 @@
                     const tempVal = form.querySelector('input[name="temperature"]').value;
                     const humidVal = form.querySelector('input[name="humidity"]').value;
 
-                    // ⚡ FIRES EXACTLY ONCE PER DEFECT DETECTED BY AI LOOP
                     for (const det of activeDetectionsCollection) {
                         let mappedSeverity = 'Medium';
                         const lowerType = det.type.toLowerCase().trim();
@@ -367,7 +490,7 @@
                                     humidity: humidVal,
                                     image_path: base64ImageStringCache,
                                     bbox_coordinates: det.bbox,
-                                    confidence_score: det.confidence // Correctly tracking AI Processed status badges
+                                    confidence_score: det.confidence
                                 })
                             });
                         } catch (err) {
@@ -377,6 +500,7 @@
                 };
 
             } catch (err) {
+                console.error(err);
                 placeholder.classList.remove('hidden');
                 placeholder.innerHTML = `<i data-lucide="x-circle" class="w-12 h-12 text-rose-500 mb-2"></i><p class="text-[10px] uppercase font-black text-rose-500">Pipeline Execution Error.</p>`;
                 if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -386,7 +510,7 @@
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         };
-        reader.readAsDataURL(targetFile);
+        imageReaderInstance.readAsDataURL(targetFile);
     });
 
     function renderInterfaceOverlayMatrix() {
@@ -405,6 +529,17 @@
 
         const printOutputImg = document.getElementById('print-output-img');
         if (printOutputImg && base64ImageStringCache) printOutputImg.src = base64ImageStringCache;
+
+        const outputVideo = document.getElementById('processed-output-video');
+        const isVideoActive = outputVideo && !outputVideo.classList.contains('hidden');
+
+        if (overlay) {
+            if (isVideoActive && !manualDrawActiveFlag) {
+                overlay.style.pointerEvents = 'none';
+            } else {
+                overlay.style.pointerEvents = 'auto';
+            }
+        }
 
         activeDetectionsCollection.forEach((det, idx) => {
             const [x1, y1, x2, y2] = det.bbox;
@@ -452,7 +587,10 @@
                 box.appendChild(resizeHandle);
                 setupBoxInteractionHandlers(box, resizeHandle, idx);
             }
-            if (overlay) overlay.appendChild(box);
+
+            if (overlay && (!isVideoActive || det.isManual)) {
+                overlay.appendChild(box);
+            }
 
             if (printOverlay) {
                 const printBox = document.createElement('div');
@@ -522,6 +660,7 @@
             trayDeleteBtn.innerHTML = '✕';
             trayDeleteBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 removeAnnotationNode(idx);
             });
             itemCard.appendChild(trayDeleteBtn);
@@ -619,17 +758,25 @@
         const btn = document.getElementById('manual-draw-btn');
         const selector = document.getElementById('manual-class-select');
         const text = document.getElementById('draw-btn-text');
+        const overlayWrapper = document.getElementById('bbox-overlay-wrapper');
         
         if (manualDrawActiveFlag) {
             btn.classList.replace('bg-slate-50', 'bg-amber-500');
             btn.classList.add('text-white');
             if (selector) selector.classList.remove('hidden');
             text.innerText = 'Exit Drawing Mode';
+            
+            if (overlayWrapper) overlayWrapper.style.pointerEvents = 'auto';
         } else {
             btn.classList.replace('bg-amber-500', 'bg-slate-50');
             btn.classList.remove('text-white');
             if (selector) selector.classList.add('hidden');
             text.innerText = 'Add Manual Box';
+            
+            const outputVideo = document.getElementById('processed-output-video');
+            if (outputVideo && !outputVideo.classList.contains('hidden')) {
+                if (overlayWrapper) overlayWrapper.style.pointerEvents = 'none';
+            }
         }
         renderInterfaceOverlayMatrix(); 
     };
@@ -810,8 +957,11 @@
         });
     }
 
+    // ⚡ FIXED PRINT REPORT ENGINE: Bypasses frameDoc.write Trusted Types assignment restrictions
     function executeReportPrint() {
-        const reportContent = document.getElementById('hoverscan-print-template').innerHTML;
+        const reportContentContainer = document.getElementById('hoverscan-print-template');
+        if (!reportContentContainer) return;
+
         const existingFrame = document.getElementById('hoverscan-silent-print-frame');
         if (existingFrame) existingFrame.remove();
 
@@ -829,54 +979,55 @@
         iframe.style.pointerEvents = 'none';
 
         document.body.appendChild(iframe);
-        const frameDoc = iframe.contentWindow.document || iframe.contentDocument;
+        const frameWindow = iframe.contentWindow;
+        const frameDoc = frameWindow.document;
         
-        frameDoc.open();
-        frameDoc.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Hoverscan Inspection Report</title>
-                <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-                <script src="https://cdn.tailwindcss.com"><\/script>
-                <style>
-                    body { 
-                        font-family: 'Plus Jakarta Sans', sans-serif; 
-                        background-color: #ffffff !important; 
-                        color: #000000 !important; 
-                        padding: 20px; 
-                        margin: 0;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                    .font-mono { font-family: 'JetBrains Mono', monospace !important; }
-                    @media print {
-                        body { padding: 0; margin: 0; }
-                        @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
-                        h3, table, .grid { break-inside: avoid !important; page-break-inside: avoid !important; }
-                    }
-                    img { max-width: 100%; object-fit: contain; }
-                </style>
-            </head>
-            <body>
-                <div style="width: 100%; max-w-[190mm]; margin: 0 auto;">${reportContent}</div>
-                <script>
-                    const logoImg = document.querySelector('img[alt=\"Hoverscan Logo\"]');
-                    if (logoImg) {
-                        logoImg.src = window.location.origin + '/hoverscanimg.png';
-                        logoImg.onerror = function() { this.style.display = 'none'; };
-                    }
-                    window.onload = function() {
-                        setTimeout(() => {
-                            window.focus();
-                            window.print();
-                        }, 600);
-                    };
-                <\/script>
-            </body>
-            </html>
-        `);
-        frameDoc.close();
+        // Setup internal printing document architecture securely using nodes properties manipulation
+        const printBaseStyle = frameDoc.createElement('style');
+        printBaseStyle.textContent = `
+            body { 
+                font-family: 'Plus Jakarta Sans', sans-serif; 
+                background-color: #ffffff !important; 
+                color: #000000 !important; 
+                padding: 20px; 
+                margin: 0;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+            @media print {
+                body { padding: 0; margin: 0; }
+                @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
+                h3, table, .grid { break-inside: avoid !important; page-break-inside: avoid !important; }
+            }
+            img { max-width: 100%; object-fit: contain; }
+        `;
+        
+        const printTailwindScript = frameDoc.createElement('script');
+        printTailwindScript.src = "https://cdn.tailwindcss.com";
+
+        const printMasterWrapper = frameDoc.createElement('div');
+        printMasterWrapper.style.width = "100%";
+        printMasterWrapper.style.maxWidth = "190mm";
+        printMasterWrapper.style.margin = "0 auto";
+        printMasterWrapper.innerHTML = reportContentContainer.innerHTML;
+
+        // Correct Logo asset paths directly on iframe children
+        const logoImgElement = printMasterWrapper.querySelector('img[alt="Hoverscan Logo"]');
+        if (logoImgElement) {
+            logoImgElement.src = window.location.origin + '/hoverscanimg.png';
+            logoImgElement.onerror = function() { this.style.display = 'none'; };
+        }
+
+        frameDoc.head.appendChild(printBaseStyle);
+        frameDoc.head.appendChild(printTailwindScript);
+        frameDoc.body.appendChild(printMasterWrapper);
+
+        // Await Tailwind styling compilation loop threads configuration rules
+        setTimeout(() => {
+            frameWindow.focus();
+            frameWindow.print();
+        }, 650);
     }
 </script>
 @endpush
